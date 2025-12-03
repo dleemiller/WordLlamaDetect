@@ -269,20 +269,33 @@ def save_confusion_heatmap(results: dict, labels: list[str], output_path: str | 
         logger.warning("No confusion matrix in results; skipping heatmap.")
         return
 
-    plt.figure(figsize=(12, 10))
+    # Use log scale for better visualization (add 1 to avoid log(0))
+    cm_log = np.log10(cm + 1)
+
+    # Scale figure size based on number of languages
+    n_langs = len(labels)
+    fig_size = max(20, n_langs * 0.15)  # At least 20 inches, scale with languages
+
+    plt.figure(figsize=(fig_size, fig_size))
     sns.heatmap(
-        cm,
+        cm_log,
         cmap="Blues",
         cbar=True,
         xticklabels=labels,
         yticklabels=labels,
         square=True,
-        linewidths=0.1,
+        linewidths=0,
+        cbar_kws={"label": "log10(count + 1)"},
     )
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
-    plt.title("FLORES Confusion Matrix")
+    plt.xlabel("Predicted", fontsize=12)
+    plt.ylabel("True", fontsize=12)
+    plt.title("FLORES Confusion Matrix (Log Scale)", fontsize=14)
+
+    # Rotate labels and adjust font size
+    plt.xticks(rotation=90, fontsize=6)
+    plt.yticks(rotation=0, fontsize=6)
+
     plt.tight_layout()
-    plt.savefig(output_path)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     logger.info(f"Saved FLORES confusion heatmap to {output_path}")

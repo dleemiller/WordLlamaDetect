@@ -1,4 +1,4 @@
-"""NumPy-only language detection."""
+"""NumPy-only language detection using pre-computed lookup tables."""
 
 from pathlib import Path
 
@@ -8,32 +8,29 @@ from tokenizers import Tokenizer
 
 from langtoken.config.loader import load_model_config
 from langtoken.config.models import ModelConfig
-from langtoken.embeddings.extractor import load_embeddings
-from langtoken.inference.utils import apply_projection, avg_pool, max_pool, softmax
+from langtoken.inference.utils import avg_pool, logsumexp_pool, max_pool, softmax
 
 
 class LanguageDetector:
     """NumPy-only language detector.
 
     This class performs language detection using only NumPy operations,
-    without requiring PyTorch. It loads a trained projection matrix and
-    uses static embeddings for inference.
+    without requiring PyTorch. It loads a pre-computed quantized lookup table
+    for fast inference.
     """
 
     def __init__(
         self,
         model_dir: str | Path,
-        projection_matrix_name: str = "projection.safetensors",
         config_name: str = "model_config.yaml",
-        embeddings_cache_dir: str = "artifacts/embeddings",
+        lookup_table_name: str | None = None,
     ):
         """Initialize language detector.
 
         Args:
             model_dir: Directory containing trained model artifacts
-            projection_matrix_name: Name of projection matrix file
             config_name: Name of model config file
-            embeddings_cache_dir: Directory containing cached embeddings
+            lookup_table_name: Optional lookup table filename override
         """
         model_dir = Path(model_dir)
 
@@ -41,13 +38,13 @@ class LanguageDetector:
         config_path = model_dir / config_name
         self.config: ModelConfig = load_model_config(config_path)
 
-        # Load projection matrix and token weights
-        projection_path = model_dir / projection_matrix_name
-        self.weight, self.bias, self.token_weights = self._load_projection_matrix(projection_path)
+        # Determine lookup table filename
+        if lookup_table_name is None:
+            lookup_table_name = "lookup_table_fp8_e4m3fn.safetensors"
 
-        # Load embeddings
-        embeddings_path = self._find_embeddings_cache(embeddings_cache_dir)
-        self.embeddings = load_embeddings(embeddings_path)
+        # Load lookup table
+        lookup_table_path = model_dir / lookup_table_name
+        self.lookup_table = self._load_lookup_table(lookup_table_path)
 
         # Load tokenizer
         first_model = self.config.all_models[0]
@@ -63,33 +60,44 @@ class LanguageDetector:
         self.pooling = self.config.inference.pooling
         self.max_length = self.config.inference.max_sequence_length
 
-    def _load_projection_matrix(self, path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Load projection matrix and token weights from safetensors.
+    def _load_lookup_table(self, path: Path) -> np.ndarray:
+        """Load pre-computed lookup table from safetensors.
 
         Args:
-            path: Path to safetensors file
+            path: Path to lookup table file
 
         Returns:
-            Tuple of (weight, bias, token_weights) as numpy arrays
+            Lookup table as fp32 numpy array (vocab_size, n_langs)
         """
         with safe_open(path, framework="numpy") as f:
-            weight = f.get_tensor("weight")
-            bias = f.get_tensor("bias")
-            token_weights = f.get_tensor("token_weights")
-        return weight, bias, token_weights
+            lookup_table = f.get_tensor("lookup_table")
 
-    def _find_embeddings_cache(self, cache_dir: str) -> Path:
-        """Find cached embeddings file.
+            # Check if this is an fp8 file (stored as uint8 view)
+            try:
+                dtype_id = f.get_tensor("dtype")
+                shape = f.get_tensor("shape")
 
-        Args:
-            cache_dir: Cache directory
+                # This is a quantized fp8 file - need to reconstruct
+                import ml_dtypes
 
-        Returns:
-            Path to embeddings cache file
-        """
-        from langtoken.embeddings.extractor import get_cache_path
+                # Reshape uint8 to original shape
+                lookup_table = lookup_table.reshape(shape)
 
-        return get_cache_path(self.config, cache_dir)
+                # View as appropriate fp8 dtype
+                if dtype_id[0] == 0:  # fp8_e4m3fn
+                    lookup_table = lookup_table.view(ml_dtypes.float8_e4m3fn)
+                elif dtype_id[0] == 1:  # fp8_e5m2
+                    lookup_table = lookup_table.view(ml_dtypes.float8_e5m2)
+
+                # Dequantize to fp32
+                lookup_table = lookup_table.astype(np.float32)
+
+            except Exception:
+                # Not an fp8 file, handle fp16 conversion
+                if lookup_table.dtype == np.float16:
+                    lookup_table = lookup_table.astype(np.float32)
+
+        return lookup_table
 
     def tokenize(self, text: str) -> np.ndarray:
         """Tokenize text.
@@ -125,25 +133,16 @@ class LanguageDetector:
             uniform_prob = 1.0 / self.config.n_languages
             return dict.fromkeys(self.language_codes, uniform_prob)
 
-        # Lookup embeddings
-        token_embeddings = self.embeddings[token_ids]  # (seq_len, hidden_dim)
-
-        # Apply learnable per-token weights
-        # token_weights[token_ids]: (seq_len, 1)
-        weighted_embeddings = token_embeddings * self.token_weights[token_ids]
-
-        # Project
-        projected = apply_projection(
-            weighted_embeddings,
-            self.weight,
-            self.bias,
-        )  # (seq_len, n_languages)
+        # Lookup pre-computed logits
+        logits = self.lookup_table[token_ids]  # (seq_len, n_langs)
 
         # Pool
         if self.pooling == "max":
-            pooled = max_pool(projected, axis=0)  # (n_languages,)
+            pooled = max_pool(logits, axis=0)  # (n_languages,)
         elif self.pooling == "average":
-            pooled = avg_pool(projected, axis=0)  # (n_languages,)
+            pooled = avg_pool(logits, axis=0)  # (n_languages,)
+        elif self.pooling == "logsumexp":
+            pooled = logsumexp_pool(logits, axis=0)  # (n_languages,)
         else:
             raise ValueError(f"Unknown pooling strategy: {self.pooling}")
 

@@ -29,7 +29,7 @@ def train_command(args):
         from langtoken.data.dataset import prepare_dataset
         from langtoken.data.tokenizer import load_tokenizer
         from langtoken.embeddings.extractor import extract_embeddings
-        from langtoken.training.evaluator import save_projection_matrix
+        from langtoken.training.evaluator import save_lookup_table, save_projection_matrix
         from langtoken.training.model import LanguageDetectionModel
         from langtoken.training.trainer import (
             LanguageDetectionDataset,
@@ -189,6 +189,18 @@ def train_command(args):
     # Save projection matrix
     projection_path = Path(config.output.artifacts_dir) / config.output.projection_matrix_name
     save_projection_matrix(model, str(projection_path))
+
+    # Generate and save fp8_e4m3fn lookup table
+    logger.info("\nStep 8b: Generate fp8_e4m3fn lookup table")
+    lookup_table_path = save_lookup_table(
+        model=model,
+        model_config=model_config,
+        output_dir=config.output.artifacts_dir,
+    )
+
+    # Log saved file
+    size_mb = lookup_table_path.stat().st_size / (1024**2)
+    logger.info(f"Lookup table saved: {lookup_table_path.name} ({size_mb:.1f} MB)")
 
     # Save model config
     from langtoken.config.loader import save_model_config

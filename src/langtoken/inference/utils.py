@@ -45,6 +45,24 @@ def avg_pool(x: np.ndarray, axis: int = 0) -> np.ndarray:
     return np.mean(x, axis=axis)
 
 
+def logsumexp_pool(x: np.ndarray, axis: int = 0) -> np.ndarray:
+    """LogSumExp pooling along specified axis.
+
+    Args:
+        x: Input array (seq_len, hidden_dim)
+        axis: Axis to pool over
+
+    Returns:
+        LogSumExp-pooled array
+    """
+    # LSE(x) = log(sum(exp(x)))
+    # For numerical stability: LSE(x) = max(x) + log(sum(exp(x - max(x))))
+    x_max = np.max(x, axis=axis, keepdims=True)
+    return np.squeeze(
+        x_max + np.log(np.sum(np.exp(x - x_max), axis=axis, keepdims=True)), axis=axis
+    )
+
+
 def apply_projection(
     embeddings: np.ndarray,
     weight: np.ndarray,

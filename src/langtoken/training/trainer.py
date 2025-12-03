@@ -221,23 +221,18 @@ class Trainer:
             self.logger.warning("FLORES evaluation skipped: tokenizer/model_config not provided")
             return None
 
-        flores_dir = Path(self.config.evaluation.flores_dir)
         flores_split = self.config.evaluation.flores_split
 
         self.logger.info(f"\nPreparing FLORES dataset for periodic evaluation ({flores_split})...")
         flores_dataset, mapped_languages, skipped_languages = create_flores_dataset(
-            flores_dir,
             self.model_config.languages,
             flores_split,
-            source=self.config.evaluation.flores_source,
             hf_dataset=self.config.evaluation.flores_hf_dataset,
             cache_dir=self.config.evaluation.flores_cache_dir,
         )
         self._flores_lang_distribution = get_flores_language_distribution(
-            flores_dir,
             self.model_config.languages,
             flores_split,
-            source=self.config.evaluation.flores_source,
             hf_dataset=self.config.evaluation.flores_hf_dataset,
             cache_dir=self.config.evaluation.flores_cache_dir,
         )

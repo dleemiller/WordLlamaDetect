@@ -9,8 +9,10 @@ dependencies = [
     "safetensors>=0.4.5",
     "pyyaml>=6.0.2",
     "pydantic>=2.12.4",
-    "tokenizers>=0.22.0",  # HuggingFace tokenizers (Rust, no PyTorch)
+    "tokenizers>=0.22.0", # HuggingFace tokenizers (Rust, no PyTorch)
     "psutil>=7.0.0",
+    "ml-dtypes>=0.5.0", # For fp8 quantization support
+    "numba>=0.62.1",
 ]
 
 [project.optional-dependencies]
