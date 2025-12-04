@@ -6,13 +6,13 @@ from unittest.mock import MagicMock, patch
 import torch
 import torch.nn as nn
 
-from langtoken.config.models import (
+from wldetect.config.models import (
     EvaluationConfig,
     OutputConfig,
     TrainingConfig,
     TrainingHyperparameters,
 )
-from langtoken.training.trainer import Trainer
+from wldetect.training.trainer import Trainer
 
 
 class _TinyModel(nn.Module):
@@ -89,8 +89,8 @@ def test_get_flores_loader_uses_hf_dataset(tmp_path: Path):
 
     # Mock the FLORES dataset functions
     with (
-        patch("langtoken.training.trainer.create_flores_dataset") as mock_create,
-        patch("langtoken.training.trainer.get_flores_language_distribution") as mock_get_dist,
+        patch("wldetect.training.trainer.create_flores_dataset") as mock_create,
+        patch("wldetect.training.trainer.get_flores_language_distribution") as mock_get_dist,
     ):
         # Setup mocks to return minimal valid data
         mock_create.return_value = ([], {}, set())

@@ -2,7 +2,7 @@
 
 import torch
 
-from langtoken.training.losses import FocalLoss
+from wldetect.training.losses import FocalLoss
 
 
 def test_focal_loss_matches_cross_entropy_when_gamma_zero():

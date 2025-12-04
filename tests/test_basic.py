@@ -3,14 +3,14 @@
 
 def test_imports():
     """Test that package can be imported."""
-    import langtoken
+    import wldetect
 
-    assert langtoken.__version__ == "0.1.0"
+    assert wldetect.__version__ == "0.1.0"
 
 
 def test_config_imports():
     """Test config module imports."""
-    from langtoken.config import loader, models
+    from wldetect.config import loader, models
 
     assert hasattr(models, "ModelConfig")
     assert hasattr(models, "TrainingConfig")
@@ -20,7 +20,7 @@ def test_config_imports():
 
 def test_embeddings_imports():
     """Test embeddings module imports."""
-    from langtoken.embeddings import extractor, loader
+    from wldetect.embeddings import extractor, loader
 
     assert hasattr(extractor, "extract_embeddings")
     assert hasattr(loader, "load_embeddings_from_model")
@@ -28,9 +28,10 @@ def test_embeddings_imports():
 
 def test_inference_imports():
     """Test inference module imports."""
-    from langtoken.inference import detector, utils
+    from wldetect import WLDetect
+    from wldetect.inference import utils
 
-    assert hasattr(detector, "LanguageDetector")
+    assert hasattr(WLDetect, "load")
     assert hasattr(utils, "softmax")
     assert hasattr(utils, "max_pool")
     assert hasattr(utils, "avg_pool")

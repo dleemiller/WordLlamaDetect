@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from langtoken.inference.quantization import (
+from wldetect.inference.quantization import (
     dequantize_fp8,
     quantize_fp8_e4m3fn,
     quantize_fp8_e5m2,

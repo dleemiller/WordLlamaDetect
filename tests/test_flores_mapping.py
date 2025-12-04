@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from langtoken.data.flores import map_flores_to_model_languages
+from wldetect.data.flores import map_flores_to_model_languages
 
 
 @pytest.fixture(scope="module")

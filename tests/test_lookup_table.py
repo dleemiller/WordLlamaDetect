@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from langtoken.training.lookup_table import compute_lookup_table
+from wldetect.training.lookup_table import compute_lookup_table
 
 
 def test_compute_lookup_table_shapes():
