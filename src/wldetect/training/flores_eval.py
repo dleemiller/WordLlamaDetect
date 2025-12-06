@@ -21,6 +21,201 @@ logger = logging.getLogger("wldetect")
 console = Console()
 
 
+def evaluate_on_flores_inference(
+    detector,
+    model_config,
+    split: str = "dev",
+    batch_size: int = 512,
+    hf_dataset: str | None = None,
+    cache_dir: str | None = None,
+) -> dict:
+    """Evaluate fp8 inference model on FLORES-200 dataset from HuggingFace.
+
+    Args:
+        detector: WLDetect instance (fp8 inference model)
+        model_config: Model configuration with language mappings
+        split: Split to evaluate ('dev' or 'devtest')
+        batch_size: Batch size for evaluation
+        hf_dataset: HF dataset name (default: openlanguagedata/flores_plus)
+        cache_dir: Optional cache dir for HF dataset
+
+    Returns:
+        Dictionary with evaluation metrics
+    """
+    hf_name = hf_dataset or "openlanguagedata/flores_plus"
+
+    console.print(
+        Panel(
+            f"[bold cyan]FLORES EVALUATION (FP8 Inference)[/bold cyan]\nSplit: {split} | Dataset: {hf_name}",
+            expand=False,
+        )
+    )
+
+    # Load FLORES dataset
+    logger.info("Loading FLORES dataset...")
+    flores_dataset, mapped_languages, skipped_languages = create_flores_dataset(
+        model_config.languages,
+        split,
+        hf_dataset=hf_dataset,
+        cache_dir=cache_dir,
+    )
+    logger.info(f"Total examples: {len(flores_dataset)}")
+
+    # Get language distribution
+    distribution = get_flores_language_distribution(
+        model_config.languages,
+        split,
+        hf_dataset=hf_dataset,
+        cache_dir=cache_dir,
+    )
+
+    # Show language distribution in a table
+    dist_table = Table(title="Language Distribution (Top 10)", show_header=True)
+    dist_table.add_column("Language", style="cyan")
+    dist_table.add_column("Sentences", justify="right", style="green")
+
+    for lang, count in sorted(distribution.items(), key=lambda x: -x[1])[:10]:
+        dist_table.add_row(lang, str(count))
+
+    if len(distribution) > 10:
+        dist_table.add_row(f"... and {len(distribution) - 10} more", "", style="dim")
+
+    console.print(dist_table)
+
+    if skipped_languages:
+        logger.warning(
+            f"Skipped {len(skipped_languages)} FLORES languages not mapped to model: "
+            f"{sorted(skipped_languages)[:10]}{'...' if len(skipped_languages) > 10 else ''}"
+        )
+
+    # Run evaluation using WLDetect batch prediction
+    logger.info("Evaluating model...")
+    all_predictions = []
+    all_labels = []
+
+    # Process in batches
+    for i in tqdm(range(0, len(flores_dataset), batch_size), desc="Evaluating"):
+        batch = flores_dataset[i : i + batch_size]
+        texts = [sample["text"] for sample in batch]
+        true_langs = [sample["language"] for sample in batch]
+
+        # Batch predict
+        results = detector.predict(texts)
+
+        # Convert predictions to language indices
+        for (pred_lang, _), true_lang in zip(results, true_langs, strict=True):
+            pred_idx = model_config.languages[pred_lang]
+            true_idx = model_config.languages[true_lang]
+            all_predictions.append(pred_idx)
+            all_labels.append(true_idx)
+
+    predictions = np.array(all_predictions)
+    labels = np.array(all_labels)
+
+    # Compute metrics
+    logger.info("Computing metrics...")
+    accuracy = accuracy_score(labels, predictions)
+    f1_macro = f1_score(labels, predictions, average="macro", zero_division=0)
+    f1_weighted = f1_score(labels, predictions, average="weighted", zero_division=0)
+
+    # Per-language metrics
+    language_codes = sorted(model_config.languages.keys(), key=lambda k: model_config.languages[k])
+    per_language_metrics = {}
+
+    for i, lang_code in enumerate(language_codes):
+        lang_mask = labels == i
+        n_samples = int(lang_mask.sum())
+
+        if n_samples == 0:
+            continue
+
+        lang_predictions = predictions[lang_mask]
+        lang_labels = labels[lang_mask]
+
+        lang_accuracy = accuracy_score(lang_labels, lang_predictions)
+        lang_f1 = f1_score(
+            lang_labels,
+            lang_predictions,
+            labels=[i],
+            average="macro",
+            zero_division=0,
+        )
+
+        per_language_metrics[lang_code] = {
+            "accuracy": float(lang_accuracy),
+            "f1": float(lang_f1),
+            "n_samples": n_samples,
+            "support": float(n_samples / len(labels)),
+        }
+
+    # Confusion matrix
+    cm = confusion_matrix(labels, predictions)
+
+    # Display results with rich formatting
+    console.print("\n")
+    console.print(Panel("[bold green]EVALUATION RESULTS[/bold green]", expand=False))
+
+    # Overall metrics table
+    overall_table = Table(title="Overall Metrics", show_header=False, box=None)
+    overall_table.add_column("Metric", style="cyan", width=15)
+    overall_table.add_column("Value", style="green", justify="right")
+    overall_table.add_row("Accuracy", f"{accuracy:.4f}")
+    overall_table.add_row("F1 (macro)", f"{f1_macro:.4f}")
+    overall_table.add_row("F1 (weighted)", f"{f1_weighted:.4f}")
+    overall_table.add_row("Total samples", f"{len(labels):,}")
+    console.print(overall_table)
+
+    # Show top and bottom performing languages
+    sorted_langs = sorted(
+        per_language_metrics.items(), key=lambda x: x[1]["accuracy"], reverse=True
+    )
+
+    if sorted_langs:
+        # Top 10 languages
+        top_table = Table(title="Top 10 Languages", show_header=True)
+        top_table.add_column("Language", style="cyan", width=10)
+        top_table.add_column("Accuracy", justify="right", style="green")
+        top_table.add_column("F1", justify="right", style="blue")
+        top_table.add_column("Samples", justify="right", style="yellow")
+
+        for lang, metrics in sorted_langs[:10]:
+            top_table.add_row(
+                lang,
+                f"{metrics['accuracy']:.4f}",
+                f"{metrics['f1']:.4f}",
+                f"{metrics['n_samples']:,}",
+            )
+        console.print(top_table)
+
+        # Bottom 10 languages
+        bottom_table = Table(title="Bottom 10 Languages", show_header=True)
+        bottom_table.add_column("Language", style="cyan", width=10)
+        bottom_table.add_column("Accuracy", justify="right", style="red")
+        bottom_table.add_column("F1", justify="right", style="blue")
+        bottom_table.add_column("Samples", justify="right", style="yellow")
+
+        for lang, metrics in sorted_langs[-10:]:
+            bottom_table.add_row(
+                lang,
+                f"{metrics['accuracy']:.4f}",
+                f"{metrics['f1']:.4f}",
+                f"{metrics['n_samples']:,}",
+            )
+        console.print(bottom_table)
+
+    return {
+        "overall": {
+            "accuracy": float(accuracy),
+            "f1_macro": float(f1_macro),
+            "f1_weighted": float(f1_weighted),
+            "total_samples": int(len(labels)),
+        },
+        "per_language": per_language_metrics,
+        "confusion_matrix": cm.tolist(),
+        "skipped_languages": skipped_languages,
+    }
+
+
 def evaluate_on_flores(
     model: LanguageDetectionModel,
     tokenizer,

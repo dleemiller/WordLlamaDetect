@@ -2,6 +2,10 @@
 
 Fast, lightweight language detection using static LLM embeddings with learned projection.
 
+<p align="center">
+  <img src="assets/wordllamadetect.jpg" alt="WordLlamaDetect" width="90%">
+</p>
+
 ## Overview
 
 WordLlama Detect is a language detection library that uses static embeddings from large language models combined with a simple learned projection layer. This detector is fast, accurate and targets CPU & numpy-only inference.

@@ -182,13 +182,34 @@ class Trainer:
 
         self.optimizer = optimizer_class(model.parameters(), **optimizer_kwargs)
 
+        # Calculate class weights if configured
+        class_weights = None
+        if config.training.class_weights and config.training.class_weights != "none":
+            from wldetect.training.class_weights import get_class_weights_for_training
+
+            class_weights_np = get_class_weights_for_training(
+                languages=model_config.languages,
+                config=config,
+            )
+            if class_weights_np is not None:
+                class_weights = torch.from_numpy(class_weights_np).to(device)
+                logger.info(f"Using class weights: {config.training.class_weights}")
+
         # Loss function
         if config.training.loss == "cross_entropy":
-            self.criterion = nn.CrossEntropyLoss()
+            self.criterion = nn.CrossEntropyLoss(
+                weight=class_weights,
+                label_smoothing=config.training.label_smoothing,
+            )
         elif config.training.loss == "focal":
+            # For focal loss, prefer focal_alpha if specified, otherwise use class_weights
+            alpha = config.training.focal_alpha
+            if alpha is None and class_weights is not None:
+                alpha = class_weights.cpu().numpy().tolist()
             self.criterion = FocalLoss(
                 gamma=config.training.focal_gamma,
-                alpha=config.training.focal_alpha,
+                alpha=alpha,
+                label_smoothing=config.training.label_smoothing,
             )
         else:
             raise ValueError(f"Unsupported loss type: {config.training.loss}")
@@ -606,6 +627,7 @@ class Trainer:
             "warmup_steps": self.config.training.warmup_steps,
             "dropout": self.config.training.projection.dropout,
             "num_workers": self.config.training.num_workers,
+            "label_smoothing": self.config.training.label_smoothing,
         }
         self.writer.add_hparams(hparams, {})
 

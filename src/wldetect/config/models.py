@@ -136,6 +136,42 @@ class TrainingHyperparameters(BaseModel):
     loss: Literal["cross_entropy", "focal"] = Field(
         default="cross_entropy", description="Loss function to use during training"
     )
+    label_smoothing: float = Field(
+        default=0.0,
+        ge=0.0,
+        lt=1.0,
+        description="Label smoothing factor applied to losses (0 disables smoothing)",
+    )
+
+    # Class weighting configuration
+    class_weights: (
+        Literal[
+            "none",
+            "population",
+            "log_population",
+            "inverse_population",
+            "inverse_log_population",
+            "sqrt_inverse_population",
+            "balanced",
+        ]
+        | None
+    ) = Field(
+        default=None,
+        description="Class weighting strategy: none (no weighting), log_population (log-scaled boost to high-resource), "
+        "population (linear boost to high-resource), inverse_log_population (log-scaled boost to low-resource), "
+        "inverse_population (linear boost to low-resource), sqrt_inverse_population (gentle boost to low-resource), "
+        "balanced (sklearn-style balancing)",
+    )
+    class_weights_power: float = Field(
+        default=1.0,
+        ge=0.0,
+        description="Power to apply to population-based weights (1.0=linear, <1.0=less extreme, >1.0=more extreme)",
+    )
+    population_data_path: str = Field(
+        default="configs/language_populations.yaml",
+        description="Path to YAML file with language speaker populations",
+    )
+
     focal_gamma: float = Field(default=2.0, ge=0.0, description="Focusing parameter for focal loss")
     focal_alpha: float | list[float] | None = Field(
         default=None,
