@@ -6,7 +6,7 @@ Class for downloading, extracting, caching, and loading LLM embeddings.
 
 ### `__init__(model_config, cache_dir="artifacts/embeddings", hf_cache_dir=None)`
 Initialize the manager with configuration.
-- **Used in:** All CLI commands (train, evaluate, generate_lookup_table, sweep), training/evaluator.py
+- **Used in:** All CLI commands (train, evaluate, generate_lookup_table, sweep), training/lookup_table.py
 
 ### `extract_embeddings(use_cache=True) -> np.ndarray`
 Download embeddings from HuggingFace and cache locally. Returns (vocab_size, hidden_dim) array.
@@ -15,7 +15,7 @@ Download embeddings from HuggingFace and cache locally. Returns (vocab_size, hid
 
 ### `load_cached_embeddings() -> np.ndarray`
 Load embeddings from cache (no download). Returns (vocab_size, hidden_dim) array.
-- **Used in:** training/evaluator.py (lookup table generation), CLI sweep command
+- **Used in:** training/lookup_table.py (lookup table generation), CLI sweep command
 - **Raises:** FileNotFoundError if cache doesn't exist
 
 ### `load_as_memmap() -> np.ndarray`

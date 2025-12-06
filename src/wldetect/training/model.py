@@ -52,15 +52,20 @@ class LanguageDetectionModel(nn.Module):
         # Shape: (vocab_size, 1) so we can broadcast multiply with embeddings
         self.token_weights = nn.Parameter(torch.ones(vocab_size, 1))
 
-        # Apply token mask if provided (zero-weight under-represented tokens)
+        # Apply token mask if provided (zero-weight under-represented tokens) and freeze them
+        self.register_buffer("token_mask", None)
         if token_mask is not None:
             if token_mask.shape[0] != vocab_size:
                 raise ValueError(
                     f"Token mask shape {token_mask.shape} doesn't match vocab_size {vocab_size}"
                 )
+            mask = token_mask.view(-1, 1).float()
+            self.register_buffer("token_mask", mask)
             with torch.no_grad():
                 # Zero out weights for masked tokens (where mask is False)
-                self.token_weights.data[~token_mask] = 0.0
+                self.token_weights.data *= mask
+            # Stop gradients from updating masked positions
+            self.token_weights.register_hook(lambda grad: grad * mask)
 
         self.dropout = nn.Dropout(dropout)
         self.projection = nn.Linear(hidden_dim, n_languages)
@@ -81,7 +86,10 @@ class LanguageDetectionModel(nn.Module):
 
         # Apply learnable per-token weights
         # token_weights[token_ids]: (batch, seq_len, 1)
-        weighted_embeddings = embeddings * self.token_weights[token_ids]
+        token_weights = (
+            self.token_weights if self.token_mask is None else self.token_weights * self.token_mask
+        )
+        weighted_embeddings = embeddings * token_weights[token_ids]
 
         x = self.dropout(weighted_embeddings)
 
@@ -132,4 +140,6 @@ class LanguageDetectionModel(nn.Module):
         Returns:
             Token weights (vocab_size, 1)
         """
-        return self.token_weights.data
+        if self.token_mask is None:
+            return self.token_weights.data
+        return self.token_weights.data * self.token_mask

@@ -18,6 +18,7 @@ from transformers import AutoTokenizer
 
 from wldetect.config.loader import load_model_config, load_training_config
 from wldetect.data.dataset import prepare_dataset
+from wldetect.tokenization import disable_chat_template
 from wldetect.training.trainer import LanguageDetectionDataset
 
 
@@ -56,6 +57,7 @@ def main() -> None:
     model_config = load_model_config(training_config.model_config_path)
 
     tokenizer = AutoTokenizer.from_pretrained(model_config.all_models[0].name)
+    disable_chat_template(tokenizer)
     max_length = model_config.inference.max_sequence_length
 
     # Get vocab size from embeddings (matches actual model vocab)

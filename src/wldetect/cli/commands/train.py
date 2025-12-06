@@ -27,12 +27,12 @@ def run(args) -> int:
     from wldetect.config.loader import load_model_config, load_training_config, save_model_config
     from wldetect.data.dataset import prepare_dataset
     from wldetect.embeddings import EmbeddingsManager
-    from wldetect.training.evaluator import (
-        save_lookup_table,
-        save_lookup_table_e3m4,
+    from wldetect.training.flores_eval import evaluate_on_flores, save_flores_evaluation
+    from wldetect.training.lookup_table import (
+        save_lookup_table_e3m4_from_model,
+        save_lookup_table_from_model,
         save_projection_matrix,
     )
-    from wldetect.training.flores_eval import evaluate_on_flores, save_flores_evaluation
     from wldetect.training.model import LanguageDetectionModel
     from wldetect.training.trainer import (
         LanguageDetectionDataset,
@@ -195,7 +195,7 @@ def run(args) -> int:
 
     # Save E4M3FN (backward compatibility)
     logger.info("  Saving E4M3FN format (backward compatibility)...")
-    lookup_table_e4m3fn_path = save_lookup_table(
+    lookup_table_e4m3fn_path = save_lookup_table_from_model(
         model=model,
         model_config=model_config,
         output_dir=config.output.artifacts_dir,
@@ -205,7 +205,7 @@ def run(args) -> int:
 
     # Save E3M4 (new default with better precision)
     logger.info("  Saving E3M4 format (30% better precision)...")
-    lookup_table_e3m4_path = save_lookup_table_e3m4(
+    lookup_table_e3m4_path = save_lookup_table_e3m4_from_model(
         model=model,
         model_config=model_config,
         output_dir=config.output.artifacts_dir,

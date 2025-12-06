@@ -126,22 +126,13 @@ def save_lookup_table_e3m4(
     else:
         lookup_e3m4_bytes = lookup_table_fp32.astype(ml_dtypes.float8_e3m4)
 
-    # Save with metadata
+    # Save with required tensors only
     tensors = {
         "lookup_table": lookup_e3m4_bytes.view(np.uint8),
         "dtype": np.array([26], dtype=np.uint8),  # 26 = fp8_e3m4
         "shape": np.array(lookup_e3m4_bytes.shape, dtype=np.int64),
         "scale": np.array([scale_factor], dtype=np.float32),
     }
-
-    # Add optional metadata
-    if metadata:
-        if "zero_weight_mask" in metadata:
-            tensors["zero_weight_mask"] = metadata["zero_weight_mask"].astype(np.uint8)
-        if "min_count_threshold" in metadata:
-            tensors["min_count_threshold"] = np.array(
-                [metadata["min_count_threshold"]], dtype=np.int32
-            )
 
     fp8_path = output_dir / f"{base_name}_fp8_e3m4.safetensors"
     save_file(tensors, str(fp8_path))
@@ -150,3 +141,100 @@ def save_lookup_table_e3m4(
     logger.info(f"Saved fp8_e3m4 lookup table: {fp8_path} ({file_size_mb:.1f} MB)")
 
     return fp8_path
+
+
+def compute_lookup_table_from_model(
+    model,
+    model_config,
+    cache_dir: str | Path = "artifacts/embeddings",
+) -> np.ndarray:
+    """Compute lookup table directly from a trained model and cached embeddings."""
+    from wldetect.embeddings import EmbeddingsManager
+
+    embeddings_manager = EmbeddingsManager(model_config, cache_dir=cache_dir)
+    embeddings = embeddings_manager.load_cached_embeddings()
+    logger.info(f"Loaded embeddings: {embeddings.shape}")
+
+    projection_weight = model.get_projection_matrix().cpu().numpy()
+    projection_bias = model.get_projection_bias().cpu().numpy()
+    token_weights = model.get_token_weights().cpu().numpy()
+
+    return compute_lookup_table(
+        embeddings=embeddings,
+        token_weights=token_weights,
+        projection_weight=projection_weight,
+        projection_bias=projection_bias,
+    )
+
+
+def save_lookup_table_from_model(
+    model,
+    model_config,
+    output_dir: str | Path,
+    cache_dir: str | Path = "artifacts/embeddings",
+    base_name: str = "lookup_table",
+) -> Path:
+    """Generate and save fp8_e4m3fn lookup table from a trained model."""
+    lookup_table = compute_lookup_table_from_model(
+        model=model,
+        model_config=model_config,
+        cache_dir=cache_dir,
+    )
+    return save_lookup_table(
+        lookup_table_fp32=lookup_table,
+        output_dir=output_dir,
+        base_name=base_name,
+    )
+
+
+def save_lookup_table_e3m4_from_model(
+    model,
+    model_config,
+    output_dir: str | Path,
+    cache_dir: str | Path = "artifacts/embeddings",
+    scale_factor: float | None = None,
+    metadata: dict | None = None,
+    base_name: str = "lookup_table",
+) -> Path:
+    """Generate and save fp8_e3m4 lookup table (with optional scaling/metadata)."""
+    lookup_table = compute_lookup_table_from_model(
+        model=model,
+        model_config=model_config,
+        cache_dir=cache_dir,
+    )
+    return save_lookup_table_e3m4(
+        lookup_table_fp32=lookup_table,
+        output_dir=output_dir,
+        base_name=base_name,
+        scale_factor=scale_factor,
+        metadata=metadata,
+    )
+
+
+def save_projection_matrix(
+    model,
+    output_path: str | Path,
+) -> None:
+    """Save projection matrix, bias, and token weights for inspection/compatibility."""
+    from safetensors.numpy import save_file
+
+    weight = model.get_projection_matrix().cpu().numpy()
+    bias = model.get_projection_bias().cpu().numpy()
+    token_weights = model.get_token_weights().cpu().numpy()
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    save_file(
+        {
+            "weight": weight,
+            "bias": bias,
+            "token_weights": token_weights,
+        },
+        str(output_path),
+    )
+
+    logger.info(f"Saved projection matrix and token weights to {output_path}")
+    logger.info(
+        f"  Shape: weight={weight.shape}, bias={bias.shape}, token_weights={token_weights.shape}"
+    )
