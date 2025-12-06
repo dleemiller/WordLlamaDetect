@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from wldetect.cli.utils import ensure_training_deps, print_header, setup_logging
+from wldetect.tokenization import disable_chat_template
 
 
 def _eval_fp8_mode(args, logger) -> int:
@@ -103,6 +104,7 @@ def _eval_pytorch_mode(args, logger) -> int:
     logger.info("\nStep 3: Load tokenizer")
     first_model = model_config.model if model_config.model else model_config.models[0]
     tokenizer = AutoTokenizer.from_pretrained(first_model.name)
+    disable_chat_template(tokenizer)
 
     # Determine device
     if args.device == "cuda":

@@ -1,9 +1,35 @@
 [project]
 name = "wldetect"
-version = "0.1.0"
-description = "WordLlama Detect - Fast, accurate language detection using static LLM embeddings"
+dynamic = ["version"]
+description = "Fast, accurate language detection using static LLM embeddings with FP8 quantization"
 readme = "README.md"
 requires-python = ">=3.12"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Lee Miller", email = "dleemiller@gmail.com"},
+]
+keywords = [
+    "nlp",
+    "language-detection",
+    "machine-learning",
+    "embeddings",
+    "quantization",
+    "fp8",
+    "gemma",
+    "llm",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "numpy>=2.3.5",
     "safetensors>=0.4.5",
@@ -14,6 +40,12 @@ dependencies = [
     "ml-dtypes>=0.5.0", # For fp8 quantization support
     "numba>=0.62.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/dleemiller/wldetect"
+Documentation = "https://github.com/dleemiller/wldetect/tree/main/docs"
+Repository = "https://github.com/dleemiller/wldetect"
+"Bug Tracker" = "https://github.com/dleemiller/wldetect/issues"
 
 [project.optional-dependencies]
 training = [
@@ -53,11 +85,26 @@ dev = [
 wldetect = "wldetect.cli.main:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/wldetect/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/wldetect"]
+exclude = [
+    "scripts/",
+    "workflows/",
+    "artifacts/",
+    "docs/",
+    "*.md",
+    "*.png",
+    "*.json",
+]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/wldetect/models" = "wldetect/models"
@@ -67,6 +114,15 @@ include = [
     "src/wldetect/**/*.py",
     "src/wldetect/models/*.safetensors",
     "src/wldetect/models/*.yaml",
+    "README.md",
+    "LICENSE",
+]
+exclude = [
+    "scripts/",
+    "workflows/",
+    "artifacts/",
+    "*.png",
+    "*.json",
 ]
 
 [tool.pytest.ini_options]

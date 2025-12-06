@@ -24,6 +24,7 @@ class LanguageDetectionModel(nn.Module):
         embeddings: torch.Tensor,
         dropout: float = 0.1,
         pooling: str = "max",
+        token_mask: torch.Tensor | None = None,
     ):
         """Initialize language detection model.
 
@@ -34,6 +35,8 @@ class LanguageDetectionModel(nn.Module):
             embeddings: Static embeddings (vocab_size, hidden_dim) - will be stored on GPU
             dropout: Dropout probability
             pooling: Pooling strategy ('max', 'average', 'logsumexp', 'geometric', 'harmonic')
+            token_mask: Optional boolean mask (vocab_size,) where False = zero weight.
+                        Applied during initialization to zero-weight under-represented tokens.
         """
         super().__init__()
         self.hidden_dim = hidden_dim
@@ -48,6 +51,16 @@ class LanguageDetectionModel(nn.Module):
         # Learnable per-token weights (initialized to 1.0)
         # Shape: (vocab_size, 1) so we can broadcast multiply with embeddings
         self.token_weights = nn.Parameter(torch.ones(vocab_size, 1))
+
+        # Apply token mask if provided (zero-weight under-represented tokens)
+        if token_mask is not None:
+            if token_mask.shape[0] != vocab_size:
+                raise ValueError(
+                    f"Token mask shape {token_mask.shape} doesn't match vocab_size {vocab_size}"
+                )
+            with torch.no_grad():
+                # Zero out weights for masked tokens (where mask is False)
+                self.token_weights.data[~token_mask] = 0.0
 
         self.dropout = nn.Dropout(dropout)
         self.projection = nn.Linear(hidden_dim, n_languages)

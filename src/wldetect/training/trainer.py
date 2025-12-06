@@ -92,6 +92,7 @@ class LanguageDetectionDataset(Dataset):
             truncation=True,
             padding=False,  # Pad in collate_fn
             return_tensors=None,  # Get lists
+            add_special_tokens=False,  # Keep raw tokens (no BOS/EOS or chat template)
         )
 
         # CRITICAL: Only return token IDs and labels (no embeddings!)

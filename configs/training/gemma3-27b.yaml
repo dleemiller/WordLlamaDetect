@@ -25,7 +25,7 @@ training:
 
   # Class weighting
   class_weights: "log_population"
-  class_weights_power: 0.75
+  class_weights_power: 1.25
   population_data_path: "configs/language_populations.yaml"
 
 

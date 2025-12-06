@@ -36,8 +36,20 @@ class WLDetect:
         config_path = model_dir / "model_config.yaml"
         self.config = load_model_config(config_path)
 
-        # Load fp8 lookup table
-        lookup_table_path = model_dir / "lookup_table_fp8_e4m3fn.safetensors"
+        # Load fp8 lookup table (prefer E3M4, fallback to E4M3FN)
+        e3m4_path = model_dir / "lookup_table_fp8_e3m4.safetensors"
+        e4m3fn_path = model_dir / "lookup_table_fp8_e4m3fn.safetensors"
+
+        if e3m4_path.exists():
+            lookup_table_path = e3m4_path
+        elif e4m3fn_path.exists():
+            lookup_table_path = e4m3fn_path
+        else:
+            raise FileNotFoundError(
+                f"No FP8 lookup table found in {model_dir}. "
+                f"Expected either {e3m4_path.name} or {e4m3fn_path.name}"
+            )
+
         self.lookup_table = self._load_fp8_lookup_table(lookup_table_path)
 
         # Load tokenizer
@@ -70,6 +82,8 @@ class WLDetect:
     def _load_fp8_lookup_table(self, path: Path) -> np.ndarray:
         """Load fp8 lookup table from safetensors.
 
+        Supports both FP8 E3M4 (dtype_id=26) and E4M3FN (dtype_id=0) formats.
+
         Args:
             path: Path to fp8 lookup table file
 
@@ -82,18 +96,30 @@ class WLDetect:
             lookup_uint8 = f.get_tensor("lookup_table")
             dtype_id = f.get_tensor("dtype")
             shape = f.get_tensor("shape")
+            # Load scale factor if present (for scaled quantization)
+            scale = f.get_tensor("scale")[0] if "scale" in f.keys() else 1.0
 
         # Reconstruct fp8 array
         lookup_table = lookup_uint8.reshape(shape)
 
-        # View as fp8_e4m3fn
-        if dtype_id[0] != 0:
-            raise ValueError(f"Expected fp8_e4m3fn (dtype_id=0), got {dtype_id[0]}")
+        # Determine format and dequantize
+        if dtype_id[0] == 26:
+            # FP8 E3M4: 3-bit exponent, 4-bit mantissa (better precision, smaller range)
+            lookup_fp8 = lookup_table.view(ml_dtypes.float8_e3m4)
+        elif dtype_id[0] == 0:
+            # FP8 E4M3FN: 4-bit exponent, 3-bit mantissa (larger range, less precision)
+            lookup_fp8 = lookup_table.view(ml_dtypes.float8_e4m3fn)
+        else:
+            raise ValueError(
+                f"Unknown FP8 dtype_id={dtype_id[0]}. Expected 26 (E3M4) or 0 (E4M3FN)"
+            )
 
-        lookup_fp8 = lookup_table.view(ml_dtypes.float8_e4m3fn)
+        # Dequantize to fp32 and apply scale factor
+        lookup_fp32 = lookup_fp8.astype(np.float32)
+        if scale != 1.0:
+            lookup_fp32 = lookup_fp32 * scale
 
-        # Dequantize to fp32 for inference
-        return lookup_fp8.astype(np.float32)
+        return lookup_fp32
 
     def _tokenize(self, text: str) -> np.ndarray:
         """Tokenize single text.
@@ -105,7 +131,7 @@ class WLDetect:
             Token IDs as numpy array
         """
         self.tokenizer.enable_truncation(max_length=self.max_length)
-        encoding = self.tokenizer.encode(text)
+        encoding = self.tokenizer.encode(text, add_special_tokens=False)
         return np.array(encoding.ids, dtype=np.int64)
 
     def _tokenize_batch(self, texts: list[str]) -> list[np.ndarray]:
@@ -118,7 +144,7 @@ class WLDetect:
             List of token ID arrays
         """
         self.tokenizer.enable_truncation(max_length=self.max_length)
-        encodings = self.tokenizer.encode_batch(texts)
+        encodings = self.tokenizer.encode_batch(texts, add_special_tokens=False)
         return [np.array(enc.ids, dtype=np.int64) for enc in encodings]
 
     def _detect_from_tokens(self, token_ids: np.ndarray) -> tuple[str, float] | None:

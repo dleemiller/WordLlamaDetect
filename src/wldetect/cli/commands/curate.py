@@ -7,6 +7,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from wldetect.cli.utils import ensure_training_deps, setup_logging
+from wldetect.tokenization import disable_chat_template
 
 
 def run(args) -> int:
@@ -45,6 +46,7 @@ def run(args) -> int:
     # Load tokenizer
     first_model = model_config.model if model_config.model else model_config.models[0]
     tokenizer = AutoTokenizer.from_pretrained(first_model.name)
+    disable_chat_template(tokenizer)
 
     # Determine device
     if args.device == "cuda":

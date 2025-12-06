@@ -20,6 +20,9 @@ wheels/
 .installed.cfg
 *.egg
 
+# Versioning (auto-generated)
+src/wldetect/_version.py
+
 # Virtual environments
 venv/
 ENV/

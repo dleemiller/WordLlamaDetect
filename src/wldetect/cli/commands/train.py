@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from wldetect.cli.utils import ensure_training_deps, print_header, setup_logging
+from wldetect.tokenization import disable_chat_template
 
 
 def run(args) -> int:
@@ -26,7 +27,11 @@ def run(args) -> int:
     from wldetect.config.loader import load_model_config, load_training_config, save_model_config
     from wldetect.data.dataset import prepare_dataset
     from wldetect.embeddings import EmbeddingsManager
-    from wldetect.training.evaluator import save_lookup_table, save_projection_matrix
+    from wldetect.training.evaluator import (
+        save_lookup_table,
+        save_lookup_table_e3m4,
+        save_projection_matrix,
+    )
     from wldetect.training.flores_eval import evaluate_on_flores, save_flores_evaluation
     from wldetect.training.model import LanguageDetectionModel
     from wldetect.training.trainer import (
@@ -59,6 +64,7 @@ def run(args) -> int:
     logger.info("\nStep 2: Load tokenizer")
     first_model = model_config.all_models[0]
     tokenizer = AutoTokenizer.from_pretrained(first_model.name)
+    disable_chat_template(tokenizer)
 
     # Prepare dataset
     logger.info("\nStep 3: Prepare dataset")
@@ -99,6 +105,20 @@ def run(args) -> int:
         f"{embeddings_tensor.element_size() * embeddings_tensor.nelement() / 1024**3:.2f} GB"
     )
 
+    # Load token mask if provided
+    token_mask = None
+    if config.training.token_mask_path is not None:
+        import numpy as np
+
+        logger.info(f"  Loading token mask from {config.training.token_mask_path}...")
+        token_mask_np = np.load(config.training.token_mask_path)
+        token_mask = torch.from_numpy(token_mask_np).bool()
+
+        n_masked = (~token_mask).sum().item()
+        logger.info(f"    Mask shape: {token_mask.shape}")
+        logger.info(f"    Tokens to zero: {n_masked:,} ({n_masked / vocab_size * 100:.2f}%)")
+        logger.info(f"    Tokens to train: {token_mask.sum().item():,}")
+
     model = LanguageDetectionModel(
         hidden_dim=model_config.hidden_dim,
         n_languages=model_config.n_languages,
@@ -106,6 +126,7 @@ def run(args) -> int:
         embeddings=embeddings_tensor,
         dropout=config.training.projection.dropout,
         pooling=model_config.inference.pooling,
+        token_mask=token_mask,
     )
     logger.info(f"  Model parameters: {sum(p.numel() for p in model.parameters()):,}")
 
@@ -169,16 +190,28 @@ def run(args) -> int:
     projection_path = Path(config.output.artifacts_dir) / config.output.projection_matrix_name
     save_projection_matrix(model, str(projection_path))
 
-    # Generate and save fp8 lookup table
-    logger.info("\nStep 8b: Generate fp8_e4m3fn lookup table")
-    lookup_table_path = save_lookup_table(
+    # Generate and save fp8 lookup tables (both E4M3FN and E3M4)
+    logger.info("\nStep 8b: Generate fp8 lookup tables")
+
+    # Save E4M3FN (backward compatibility)
+    logger.info("  Saving E4M3FN format (backward compatibility)...")
+    lookup_table_e4m3fn_path = save_lookup_table(
         model=model,
         model_config=model_config,
         output_dir=config.output.artifacts_dir,
     )
+    size_e4m3fn_mb = lookup_table_e4m3fn_path.stat().st_size / (1024**2)
+    logger.info(f"  E4M3FN saved: {lookup_table_e4m3fn_path.name} ({size_e4m3fn_mb:.1f} MB)")
 
-    size_mb = lookup_table_path.stat().st_size / (1024**2)
-    logger.info(f"Lookup table saved: {lookup_table_path.name} ({size_mb:.1f} MB)")
+    # Save E3M4 (new default with better precision)
+    logger.info("  Saving E3M4 format (30% better precision)...")
+    lookup_table_e3m4_path = save_lookup_table_e3m4(
+        model=model,
+        model_config=model_config,
+        output_dir=config.output.artifacts_dir,
+    )
+    size_e3m4_mb = lookup_table_e3m4_path.stat().st_size / (1024**2)
+    logger.info(f"  E3M4 saved: {lookup_table_e3m4_path.name} ({size_e3m4_mb:.1f} MB)")
 
     # Save model config
     config_path = Path(config.output.artifacts_dir) / config.output.config_name
@@ -190,6 +223,8 @@ def run(args) -> int:
     print_header(logger, "TRAINING COMPLETE")
     logger.info(f"Artifacts saved to: {config.output.artifacts_dir}")
     logger.info(f"  - Projection matrix: {projection_path}")
+    logger.info(f"  - Lookup table (E4M3FN): {lookup_table_e4m3fn_path.name}")
+    logger.info(f"  - Lookup table (E3M4): {lookup_table_e3m4_path.name}")
     logger.info(f"  - Model config: {config_path}")
     logger.info("=" * 60 + "\n")
 

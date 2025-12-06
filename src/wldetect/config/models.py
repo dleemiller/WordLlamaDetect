@@ -27,16 +27,36 @@ class SingleModelConfig(BaseModel):
 
 
 class MultiModelConfig(BaseModel):
-    """Configuration for multiple models (concatenation)."""
+    """Configuration for multiple models (concatenation).
+
+    Multi-model concatenation combines embeddings from multiple models of the same family
+    (e.g., Gemma3-27B + Gemma3-4B) by concatenating along the hidden dimension.
+
+    Requirements:
+    - All models must have the same vocabulary (cannot mix Gemma3 and Qwen3)
+    - Embeddings are concatenated BEFORE training: (vocab_size, hidden_dim_1 + hidden_dim_2)
+    - Projection is trained on concatenated embeddings: (hidden_dim_1 + hidden_dim_2, n_languages)
+    - Final lookup table is still (vocab_size, n_languages)
+    """
 
     models: list[SingleModelConfig] = Field(..., min_length=1)
 
     @field_validator("models")
     @classmethod
     def validate_models(cls, v: list[SingleModelConfig]) -> list[SingleModelConfig]:
-        """Ensure at least one model is provided."""
+        """Ensure at least one model is provided and all are from the same family."""
         if not v:
             raise ValueError("At least one model must be provided")
+
+        # Ensure all models are from the same family (same type)
+        if len(v) > 1:
+            types = {model.type for model in v}
+            if len(types) > 1:
+                raise ValueError(
+                    f"Multi-model concatenation requires all models to be from the same family. "
+                    f"Found types: {types}. Use models with the same vocabulary (e.g., Gemma3-27B + Gemma3-4B)."
+                )
+
         return v
 
     @property
@@ -182,6 +202,13 @@ class TrainingHyperparameters(BaseModel):
     momentum: float = Field(default=0.9, ge=0, le=1, description="Momentum for SGD optimizer")
     num_workers: int = Field(default=4, ge=0, description="Number of DataLoader worker processes")
     projection: ProjectionConfig = Field(default_factory=ProjectionConfig)
+
+    # Token masking
+    token_mask_path: str | None = Field(
+        default=None,
+        description="Path to token mask .npy file (boolean array: True=keep, False=zero). "
+        "Tokens with False are initialized to weight=0 during training.",
+    )
 
     # Learning rate scheduler
     scheduler: Literal["none", "cosine", "cosine_warmup"] | None = Field(
