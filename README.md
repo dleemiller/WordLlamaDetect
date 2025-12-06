@@ -3,7 +3,7 @@
 Fast, lightweight language detection using static LLM embeddings with learned projection.
 
 <p align="center">
-  <img src="assets/wordllamadetect.jpg" alt="WordLlamaDetect" width="90%">
+  <img src="assets/wordllamadetect.jpeg" alt="WordLlamaDetect" width="90%">
 </p>
 
 ## Overview
