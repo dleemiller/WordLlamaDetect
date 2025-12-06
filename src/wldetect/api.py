@@ -7,7 +7,7 @@ from safetensors import safe_open
 from tokenizers import Tokenizer
 
 from wldetect.config.loader import load_model_config
-from wldetect.inference.utils import logsumexp_pool, softmax
+from wldetect.inference.utils import avg_pool, logsumexp_pool, max_pool, softmax
 
 
 class WLDetect:
@@ -121,21 +121,17 @@ class WLDetect:
         encodings = self.tokenizer.encode_batch(texts)
         return [np.array(enc.ids, dtype=np.int64) for enc in encodings]
 
-    def _detect_single(self, text: str) -> tuple[str, float]:
-        """Detect language for a single text.
+    def _detect_from_tokens(self, token_ids: np.ndarray) -> tuple[str, float] | None:
+        """Core detection logic from token IDs.
 
         Args:
-            text: Input text
+            token_ids: Token ID array
 
         Returns:
-            Tuple of (language_code, confidence)
+            Tuple of (language_code, confidence) or None if empty
         """
-        # Tokenize
-        token_ids = self._tokenize(text)
-
         if len(token_ids) == 0:
-            # Return most common language with low confidence
-            return "eng_Latn", 1.0 / self.config.n_languages
+            return None
 
         # Lookup
         logits = self.lookup_table[token_ids]  # (seq_len, n_langs)
@@ -143,8 +139,10 @@ class WLDetect:
         # Pool
         if self.pooling == "logsumexp":
             pooled = logsumexp_pool(logits, axis=0)
-        else:
-            pooled = np.max(logits, axis=0)
+        elif self.pooling == "average":
+            pooled = avg_pool(logits, axis=0)
+        else:  # max (and other pooling methods fall back to max)
+            pooled = max_pool(logits, axis=0)
 
         # Softmax
         probs = softmax(pooled)
@@ -156,55 +154,41 @@ class WLDetect:
 
         return top_lang, top_conf
 
-    def _detect_batch(self, texts: list[str]) -> list[tuple[str, float]]:
+    def _detect_single(self, text: str) -> tuple[str, float] | None:
+        """Detect language for a single text.
+
+        Args:
+            text: Input text
+
+        Returns:
+            Tuple of (language_code, confidence) or None if empty
+        """
+        token_ids = self._tokenize(text)
+        return self._detect_from_tokens(token_ids)
+
+    def _detect_batch(self, texts: list[str]) -> list[tuple[str, float] | None]:
         """Detect language for multiple texts using batch tokenization.
 
         Args:
             texts: List of input texts
 
         Returns:
-            List of (language_code, confidence) tuples
+            List of (language_code, confidence) tuples or None for empty texts
         """
-        # Batch tokenize (faster than individual calls)
         all_token_ids = self._tokenize_batch(texts)
+        return [self._detect_from_tokens(token_ids) for token_ids in all_token_ids]
 
-        results = []
-        for token_ids in all_token_ids:
-            if len(token_ids) == 0:
-                # Return most common language with low confidence
-                results.append(("eng_Latn", 1.0 / self.config.n_languages))
-                continue
-
-            # Lookup
-            logits = self.lookup_table[token_ids]  # (seq_len, n_langs)
-
-            # Pool
-            if self.pooling == "logsumexp":
-                pooled = logsumexp_pool(logits, axis=0)
-            else:
-                pooled = np.max(logits, axis=0)
-
-            # Softmax
-            probs = softmax(pooled)
-
-            # Get top prediction
-            top_idx = int(np.argmax(probs))
-            top_lang = self.index_to_language[top_idx]
-            top_conf = float(probs[top_idx])
-
-            results.append((top_lang, top_conf))
-
-        return results
-
-    def predict(self, text: str | list[str]) -> tuple[str, float] | list[tuple[str, float]]:
+    def predict(
+        self, text: str | list[str]
+    ) -> tuple[str, float] | None | list[tuple[str, float] | None]:
         """Predict language for text(s).
 
         Args:
             text: Single text string or list of text strings
 
         Returns:
-            For single text: (language_code, confidence)
-            For list: [(language_code, confidence), ...]
+            For single text: (language_code, confidence) or None if empty
+            For list: [(language_code, confidence), ...] with None for empty texts
         """
         if isinstance(text, str):
             return self._detect_single(text)

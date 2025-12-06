@@ -20,10 +20,11 @@ def test_config_imports():
 
 def test_embeddings_imports():
     """Test embeddings module imports."""
-    from wldetect.embeddings import extractor, loader
+    from wldetect.embeddings import EmbeddingsManager
 
-    assert hasattr(extractor, "extract_embeddings")
-    assert hasattr(loader, "load_embeddings_from_model")
+    assert hasattr(EmbeddingsManager, "extract_embeddings")
+    assert hasattr(EmbeddingsManager, "load_cached_embeddings")
+    assert hasattr(EmbeddingsManager, "load_as_memmap")
 
 
 def test_inference_imports():

@@ -62,7 +62,7 @@ def save_lookup_table(
         Path to saved lookup table file
     """
 
-    from wldetect.embeddings.extractor import get_cache_path, load_embeddings
+    from wldetect.embeddings import EmbeddingsManager
     from wldetect.training.lookup_table import (
         compute_lookup_table,
     )
@@ -73,12 +73,9 @@ def save_lookup_table(
     logger.info("Generating fp8_e4m3fn lookup table...")
 
     # Load embeddings from cache
-    cache_path = get_cache_path(model_config, cache_dir="artifacts/embeddings")
-    if not cache_path.exists():
-        raise FileNotFoundError(f"Embeddings cache not found at {cache_path}")
-
-    logger.info(f"Loading embeddings from {cache_path}")
-    embeddings = load_embeddings(cache_path)  # (vocab_size, hidden_dim)
+    embeddings_manager = EmbeddingsManager(model_config, cache_dir="artifacts/embeddings")
+    embeddings = embeddings_manager.load_cached_embeddings()  # (vocab_size, hidden_dim)
+    logger.info(f"Loaded embeddings: {embeddings.shape}")
 
     # Get trained parameters (convert to numpy)
     projection_weight = model.get_projection_matrix().cpu().numpy()  # (n_langs, hidden_dim)
