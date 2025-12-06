@@ -19,10 +19,6 @@ WordLlama Detect is a language detection library that uses static embeddings fro
 
 ## Installation
 
-```bash
-pip install wldetect
-```
-
 Or from source:
 ```bash
 git clone https://github.com/dleemiller/wldetect.git
