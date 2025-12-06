@@ -1,0 +1,780 @@
+# Language Speaker Populations
+#
+# This file contains estimated total speaker populations for all languages in the model.
+# Sources: Ethnologue (2024), Wikipedia, Glottolog, and other linguistic databases.
+#
+# Format:
+#   language_code:
+#     name: Full language name
+#     speakers: Total L1 + L2 speakers (approximate)
+#     notes: Additional context (optional)
+#
+# Population estimates are approximate and may vary by source.
+# For languages with significant L2 speaker populations, total includes both L1 and L2.
+
+# Major languages (100M+ speakers)
+eng_Latn:
+  name: English
+  speakers: 1500000000
+  notes: L1 ~400M, L2 ~1.1B
+
+cmn_Hans:
+  name: Mandarin Chinese (Simplified)
+  speakers: 920000000
+  notes: L1 ~920M, largest native speaker population
+
+cmn_Hant:
+  name: Mandarin Chinese (Traditional)
+  speakers: 920000000
+  notes: Same language as cmn_Hans, different script
+
+hin_Deva:
+  name: Hindi
+  speakers: 610000000
+  notes: L1 ~345M, L2 ~265M
+
+spa_Latn:
+  name: Spanish
+  speakers: 559000000
+  notes: L1 ~496M, L2 ~63M
+
+fra_Latn:
+  name: French
+  speakers: 310000000
+  notes: L1 ~81M, L2 ~229M
+
+arb_Arab:
+  name: Standard Arabic
+  speakers: 274000000
+  notes: Modern Standard Arabic, lingua franca across Arab world
+
+ben_Beng:
+  name: Bengali
+  speakers: 272000000
+  notes: L1 ~234M, L2 ~38M
+
+por_Latn:
+  name: Portuguese
+  speakers: 264000000
+  notes: L1 ~236M, L2 ~28M
+
+rus_Cyrl:
+  name: Russian
+  speakers: 258000000
+  notes: L1 ~154M, L2 ~104M
+
+# Major languages (50-100M speakers)
+jpn_Jpan:
+  name: Japanese
+  speakers: 125000000
+  notes: L1 ~123M, L2 ~2M
+
+urd_Arab:
+  name: Urdu
+  speakers: 231000000
+  notes: L1 ~71M, L2 ~160M, mutually intelligible with Hindi
+
+ind_Latn:
+  name: Indonesian
+  speakers: 199000000
+  notes: L1 ~43M, L2 ~156M, official language of Indonesia
+
+deu_Latn:
+  name: German
+  speakers: 134000000
+  notes: L1 ~76M, L2 ~58M
+
+jav_Latn:
+  name: Javanese
+  speakers: 82000000
+  notes: L1 ~82M, largest language in Indonesia
+
+kor_Hang:
+  name: Korean
+  speakers: 82000000
+  notes: L1 ~82M, primarily Korean Peninsula
+
+tel_Telu:
+  name: Telugu
+  speakers: 95000000
+  notes: L1 ~83M, Dravidian language of India
+
+vie_Latn:
+  name: Vietnamese
+  speakers: 85000000
+  notes: L1 ~85M
+
+mar_Deva:
+  name: Marathi
+  speakers: 95000000
+  notes: L1 ~83M, Indo-Aryan language of India
+
+tam_Taml:
+  name: Tamil
+  speakers: 82000000
+  notes: L1 ~77M, L2 ~5M, Dravidian language
+
+tur_Latn:
+  name: Turkish
+  speakers: 88000000
+  notes: L1 ~82M, L2 ~6M
+
+ita_Latn:
+  name: Italian
+  speakers: 85000000
+  notes: L1 ~68M, L2 ~17M
+
+tha_Thai:
+  name: Thai
+  speakers: 61000000
+  notes: L1 ~21M, L2 ~40M
+
+guj_Gujr:
+  name: Gujarati
+  speakers: 61000000
+  notes: L1 ~57M, Indo-Aryan language of India
+
+pol_Latn:
+  name: Polish
+  speakers: 50000000
+  notes: L1 ~45M, L2 ~5M
+
+# Regional major languages (10-50M speakers)
+ukr_Cyrl:
+  name: Ukrainian
+  speakers: 41000000
+  notes: L1 ~32M, L2 ~9M
+
+kan_Knda:
+  name: Kannada
+  speakers: 44000000
+  notes: L1 ~44M, Dravidian language of India
+
+mal_Mlym:
+  name: Malayalam
+  speakers: 38000000
+  notes: L1 ~35M, Dravidian language of India
+
+ory_Orya:
+  name: Odia
+  speakers: 38000000
+  notes: L1 ~35M, Indo-Aryan language of India
+
+cat_Latn:
+  name: Catalan
+  speakers: 10000000
+  notes: L1 ~4.1M, L2 ~5.9M
+
+nld_Latn:
+  name: Dutch
+  speakers: 25000000
+  notes: L1 ~24M, L2 ~5M
+
+pes_Arab:
+  name: Persian (Farsi)
+  speakers: 77000000
+  notes: L1 ~63M, L2 ~14M
+
+uzn_Latn:
+  name: Uzbek
+  speakers: 34000000
+  notes: L1 ~34M
+
+azj_Latn:
+  name: Azerbaijani
+  speakers: 33000000
+  notes: L1 ~24M, L2 ~9M
+
+sun_Latn:
+  name: Sundanese
+  speakers: 42000000
+  notes: L1 ~42M, Indonesia
+
+zsm_Latn:
+  name: Malay
+  speakers: 19000000
+  notes: L1 ~19M, distinct from Indonesian standardization
+
+pan_Guru:
+  name: Punjabi (Gurmukhi)
+  speakers: 125000000
+  notes: L1 ~113M total (all scripts), large diaspora
+
+bho_Deva:
+  name: Bhojpuri
+  speakers: 51000000
+  notes: L1 ~51M, Indo-Aryan language
+
+asm_Beng:
+  name: Assamese
+  speakers: 15000000
+  notes: L1 ~15M, Northeast India
+
+sin_Sinh:
+  name: Sinhala
+  speakers: 17000000
+  notes: L1 ~17M, Sri Lanka
+
+khm_Khmr:
+  name: Khmer
+  speakers: 16000000
+  notes: L1 ~16M, Cambodia
+
+npi_Deva:
+  name: Nepali
+  speakers: 16000000
+  notes: L1 ~16M
+
+snd_Arab:
+  name: Sindhi
+  speakers: 33000000
+  notes: L1 ~33M, Pakistan and India
+
+ces_Latn:
+  name: Czech
+  speakers: 13000000
+  notes: L1 ~10.7M, L2 ~2.3M
+
+ell_Grek:
+  name: Greek
+  speakers: 13500000
+  notes: L1 ~13.5M
+
+bul_Cyrl:
+  name: Bulgarian
+  speakers: 8000000
+  notes: L1 ~8M
+
+dan_Latn:
+  name: Danish
+  speakers: 6000000
+  notes: L1 ~6M
+
+fin_Latn:
+  name: Finnish
+  speakers: 5500000
+  notes: L1 ~5.5M
+
+slk_Latn:
+  name: Slovak
+  speakers: 5400000
+  notes: L1 ~5.4M
+
+hrv_Latn:
+  name: Croatian
+  speakers: 7000000
+  notes: L1 ~7M
+
+heb_Hebr:
+  name: Hebrew
+  speakers: 9000000
+  notes: L1 ~5.4M, L2 ~3.6M
+
+hun_Latn:
+  name: Hungarian
+  speakers: 13000000
+  notes: L1 ~13M
+
+ron_Latn:
+  name: Romanian
+  speakers: 26000000
+  notes: L1 ~24M, L2 ~4M
+
+srp_Cyrl:
+  name: Serbian (Cyrillic)
+  speakers: 12000000
+  notes: L1 ~12M
+
+bel_Cyrl:
+  name: Belarusian
+  speakers: 5200000
+  notes: L1 ~5.2M
+
+lit_Latn:
+  name: Lithuanian
+  speakers: 3000000
+  notes: L1 ~3M
+
+lvs_Latn:
+  name: Latvian
+  speakers: 1750000
+  notes: L1 ~1.75M
+
+slv_Latn:
+  name: Slovenian
+  speakers: 2500000
+  notes: L1 ~2.5M
+
+mkd_Cyrl:
+  name: Macedonian
+  speakers: 1600000
+  notes: L1 ~1.6M
+
+ekk_Latn:
+  name: Estonian
+  speakers: 1100000
+  notes: L1 ~1.1M
+
+swh_Latn:
+  name: Swahili
+  speakers: 200000000
+  notes: L1 ~16M, L2 ~184M, lingua franca in East Africa
+
+amh_Ethi:
+  name: Amharic
+  speakers: 32000000
+  notes: L1 ~25M, L2 ~7M, Ethiopia
+
+som_Latn:
+  name: Somali
+  speakers: 22000000
+  notes: L1 ~22M
+
+hau_Latn:
+  name: Hausa
+  speakers: 77000000
+  notes: L1 ~50M, L2 ~27M, West Africa
+
+yor_Latn:
+  name: Yoruba
+  speakers: 45000000
+  notes: L1 ~45M, West Africa
+
+ibo_Latn:
+  name: Igbo
+  speakers: 27000000
+  notes: L1 ~27M, Nigeria
+
+zul_Latn:
+  name: Zulu
+  speakers: 13600000
+  notes: L1 ~13.6M, South Africa
+
+xho_Latn:
+  name: Xhosa
+  speakers: 8200000
+  notes: L1 ~8.2M, South Africa
+
+afr_Latn:
+  name: Afrikaans
+  speakers: 10300000
+  notes: L1 ~7.2M, L2 ~3.1M
+
+sna_Latn:
+  name: Shona
+  speakers: 14600000
+  notes: L1 ~14.6M, Zimbabwe
+
+nya_Latn:
+  name: Chichewa/Nyanja
+  speakers: 12600000
+  notes: L1 ~12.6M, Malawi
+
+# South Asian languages
+san_Deva:
+  name: Sanskrit
+  speakers: 25000
+  notes: L1 ~25K, liturgical language, large L2 reading population
+
+mni_Beng:
+  name: Manipuri (Meitei)
+  speakers: 1800000
+  notes: L1 ~1.8M, Northeast India
+
+sat_Olck:
+  name: Santali
+  speakers: 7600000
+  notes: L1 ~7.6M, India
+
+kas_Arab:
+  name: Kashmiri
+  speakers: 7000000
+  notes: L1 ~7M, Kashmir region
+
+# Southeast Asian languages
+ceb_Latn:
+  name: Cebuano
+  speakers: 21000000
+  notes: L1 ~21M, Philippines
+
+fil_Latn:
+  name: Filipino (Tagalog)
+  speakers: 45000000
+  notes: L1 ~29M, L2 ~16M, Philippines
+
+ilo_Latn:
+  name: Ilocano
+  speakers: 9800000
+  notes: L1 ~9.8M, Philippines
+
+pag_Latn:
+  name: Pangasinan
+  speakers: 1540000
+  notes: L1 ~1.54M, Philippines
+
+war_Latn:
+  name: Waray
+  speakers: 3600000
+  notes: L1 ~3.6M, Philippines
+
+mya_Mymr:
+  name: Burmese
+  speakers: 43000000
+  notes: L1 ~33M, L2 ~10M, Myanmar
+
+lao_Laoo:
+  name: Lao
+  speakers: 30000000
+  notes: L1 ~3.9M, L2 ~26M, Laos and Thailand
+
+shn_Mymr:
+  name: Shan
+  speakers: 3300000
+  notes: L1 ~3.3M, Myanmar
+
+# Central Asian languages
+kaz_Cyrl:
+  name: Kazakh
+  speakers: 13000000
+  notes: L1 ~13M
+
+kir_Cyrl:
+  name: Kyrgyz
+  speakers: 4600000
+  notes: L1 ~4.6M
+
+tgk_Cyrl:
+  name: Tajik
+  speakers: 8500000
+  notes: L1 ~8.5M
+
+tuk_Latn:
+  name: Turkmen
+  speakers: 7200000
+  notes: L1 ~7.2M
+
+uig_Arab:
+  name: Uyghur
+  speakers: 10000000
+  notes: L1 ~10M, Xinjiang China
+
+bak_Cyrl:
+  name: Bashkir
+  speakers: 1400000
+  notes: L1 ~1.4M, Russia
+
+tat_Cyrl:
+  name: Tatar
+  speakers: 5200000
+  notes: L1 ~5.2M, Russia
+
+# Caucasus languages
+kat_Geor:
+  name: Georgian
+  speakers: 4000000
+  notes: L1 ~4M
+
+hye_Armn:
+  name: Armenian
+  speakers: 6700000
+  notes: L1 ~6.7M
+
+# Middle Eastern languages
+ckb_Arab:
+  name: Central Kurdish (Sorani)
+  speakers: 8000000
+  notes: L1 ~8M, Iraq and Iran
+
+kmr_Latn:
+  name: Northern Kurdish (Kurmanji)
+  speakers: 15000000
+  notes: L1 ~15M, Turkey and Syria
+
+pbt_Arab:
+  name: Southern Pashto
+  speakers: 29000000
+  notes: L1 ~29M total (all Pashto varieties)
+
+# Egyptian and North African Arabic
+arz_Arab:
+  name: Egyptian Arabic
+  speakers: 68000000
+  notes: L1 ~68M, most widely understood Arabic dialect
+
+# Lesser-resourced languages
+bjn_Arab:
+  name: Banjarese
+  speakers: 3500000
+  notes: L1 ~3.5M, Indonesia (Borneo)
+
+ban_Latn:
+  name: Balinese
+  speakers: 3300000
+  notes: L1 ~3.3M, Indonesia
+
+knc_Arab:
+  name: Kanuri (Arabic script)
+  speakers: 4200000
+  notes: L1 ~4.2M, Nigeria, Chad, Niger
+
+knc_Latn:
+  name: Kanuri (Latin script)
+  speakers: 4200000
+  notes: Same language as knc_Arab, different script
+
+lin_Latn:
+  name: Lingala
+  speakers: 20000000
+  notes: L1 ~2M, L2 ~18M, Congo region
+
+lug_Latn:
+  name: Luganda
+  speakers: 10000000
+  notes: L1 ~5.6M, L2 ~4.4M, Uganda
+
+run_Latn:
+  name: Kirundi
+  speakers: 13000000
+  notes: L1 ~13M, Burundi
+
+lua_Latn:
+  name: Luba-Lulua
+  speakers: 6300000
+  notes: L1 ~6.3M, DRC
+
+lus_Latn:
+  name: Mizo
+  speakers: 830000
+  notes: L1 ~830K, Northeast India
+
+kik_Latn:
+  name: Kikuyu
+  speakers: 8300000
+  notes: L1 ~8.3M, Kenya
+
+twi_Latn:
+  name: Twi (Akan)
+  speakers: 11000000
+  notes: L1 ~11M, Ghana
+
+ewe_Latn:
+  name: Ewe
+  speakers: 7000000
+  notes: L1 ~7M, Ghana and Togo
+
+fij_Latn:
+  name: Fijian
+  speakers: 350000
+  notes: L1 ~350K
+
+tso_Latn:
+  name: Tsonga
+  speakers: 4400000
+  notes: L1 ~4.4M, South Africa
+
+tsn_Latn:
+  name: Tswana
+  speakers: 8200000
+  notes: L1 ~8.2M, Botswana and South Africa
+
+bem_Latn:
+  name: Bemba
+  speakers: 4100000
+  notes: L1 ~4.1M, Zambia
+
+tum_Latn:
+  name: Tumbuka
+  speakers: 2000000
+  notes: L1 ~2M, Malawi
+
+mos_Latn:
+  name: Mossi
+  speakers: 7600000
+  notes: L1 ~7.6M, Burkina Faso
+
+# Pacific languages
+smo_Latn:
+  name: Samoan
+  speakers: 510000
+  notes: L1 ~510K
+
+tpi_Latn:
+  name: Tok Pisin
+  speakers: 5400000
+  notes: L1 ~130K, L2 ~5.27M, Papua New Guinea
+
+mri_Latn:
+  name: Maori
+  speakers: 150000
+  notes: L1 ~50K, L2 ~100K, New Zealand
+
+# South American indigenous
+ayr_Latn:
+  name: Aymara
+  speakers: 1700000
+  notes: L1 ~1.7M, Bolivia and Peru
+
+quy_Latn:
+  name: Ayacucho Quechua
+  speakers: 900000
+  notes: L1 ~900K, Peru (one variety of Quechua)
+
+gug_Latn:
+  name: Paraguayan Guaraní
+  speakers: 6500000
+  notes: L1 ~6.5M, Paraguay
+
+# European regional/minority languages
+cym_Latn:
+  name: Welsh
+  speakers: 750000
+  notes: L1 ~750K, Wales
+
+gle_Latn:
+  name: Irish
+  speakers: 170000
+  notes: L1 ~170K (daily speakers), heritage language
+
+gla_Latn:
+  name: Scottish Gaelic
+  speakers: 60000
+  notes: L1 ~60K, Scotland
+
+eus_Latn:
+  name: Basque
+  speakers: 750000
+  notes: L1 ~750K, Basque Country
+
+oci_Latn:
+  name: Occitan
+  speakers: 220000
+  notes: L1 ~220K, Southern France
+
+fur_Latn:
+  name: Friulian
+  speakers: 600000
+  notes: L1 ~600K, Northeast Italy
+
+vec_Latn:
+  name: Venetian
+  speakers: 3800000
+  notes: L1 ~3.8M, Northeast Italy
+
+lim_Latn:
+  name: Limburgish
+  speakers: 1300000
+  notes: L1 ~1.3M, Netherlands and Belgium
+
+als_Latn:
+  name: Tosk Albanian
+  speakers: 1600000
+  notes: L1 ~1.6M (Tosk variety), Albania
+
+mlt_Latn:
+  name: Maltese
+  speakers: 520000
+  notes: L1 ~520K, Malta
+
+ltz_Latn:
+  name: Luxembourgish
+  speakers: 390000
+  notes: L1 ~390K, Luxembourg
+
+fao_Latn:
+  name: Faroese
+  speakers: 72000
+  notes: L1 ~72K, Faroe Islands
+
+isl_Latn:
+  name: Icelandic
+  speakers: 350000
+  notes: L1 ~350K, Iceland
+
+nob_Latn:
+  name: Norwegian Bokmål
+  speakers: 4600000
+  notes: L1 ~4.6M, Norway (written standard)
+
+swe_Latn:
+  name: Swedish
+  speakers: 13000000
+  notes: L1 ~10M, L2 ~3M
+
+# Middle Eastern and Central Asian minority languages
+crh_Latn:
+  name: Crimean Tatar
+  speakers: 480000
+  notes: L1 ~480K, Crimea and diaspora
+
+khk_Cyrl:
+  name: Halh Mongolian
+  speakers: 3300000
+  notes: L1 ~3.3M, Mongolia
+
+dzo_Tibt:
+  name: Dzongkha
+  speakers: 630000
+  notes: L1 ~630K, Bhutan
+
+tir_Ethi:
+  name: Tigrinya
+  speakers: 9850000
+  notes: L1 ~9.85M, Eritrea and Ethiopia
+
+# Caribbean and special cases
+hat_Latn:
+  name: Haitian Creole
+  speakers: 12000000
+  notes: L1 ~12M, Haiti
+
+pap_Latn:
+  name: Papiamento
+  speakers: 330000
+  notes: L1 ~330K, Caribbean (Aruba, Curaçao)
+
+# Additional Asian languages
+yue_Hant:
+  name: Cantonese
+  speakers: 85000000
+  notes: L1 ~85M, distinct from Mandarin
+
+epo_Latn:
+  name: Esperanto
+  speakers: 2000000
+  notes: L1 ~1K, L2 ~2M, constructed language
+
+# Lesser-documented languages
+gaz_Latn:
+  name: West Central Oromo
+  speakers: 17000000
+  notes: L1 ~17M total (all Oromo), Ethiopia
+
+plt_Latn:
+  name: Plateau Malagasy
+  speakers: 7500000
+  notes: L1 ~7.5M, Madagascar
+
+kab_Latn:
+  name: Kabyle
+  speakers: 5600000
+  notes: L1 ~5.6M, Algeria (Berber language)
+
+taq_Tfng:
+  name: Tamasheq (Tifinagh)
+  speakers: 1200000
+  notes: L1 ~1.2M, Sahel region (Tuareg)
+
+nus_Latn:
+  name: Nuer
+  speakers: 1800000
+  notes: L1 ~1.8M, South Sudan
+
+sag_Latn:
+  name: Sango
+  speakers: 5400000
+  notes: L1 ~500K, L2 ~4.9M, Central African Republic
+
+ktu_Latn:
+  name: Kituba
+  speakers: 5400000
+  notes: L1 ~5.4M, Congo region (creole)

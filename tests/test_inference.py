@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from langtoken.inference.utils import apply_projection, avg_pool, max_pool, softmax
+from wldetect.inference.utils import apply_projection, avg_pool, max_pool, softmax
 
 
 def test_softmax():

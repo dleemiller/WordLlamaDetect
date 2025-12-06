@@ -13,6 +13,6 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
-        args: ['--maxkb=1000']
+        args: ['--maxkb=50000']  # Allow model files up to 50MB
       - id: check-merge-conflict
       - id: check-toml

@@ -5,8 +5,8 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-from langtoken.config.models import OutputConfig, TrainingConfig
-from langtoken.training.trainer import Trainer
+from wldetect.config.models import OutputConfig, TrainingConfig
+from wldetect.training.trainer import Trainer
 
 
 class _TinyModel(nn.Module):

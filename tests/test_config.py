@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from langtoken.config.loader import load_model_config, save_model_config
-from langtoken.config.models import (
+from wldetect.config.loader import load_model_config, save_model_config
+from wldetect.config.models import (
     DatasetConfig,
     InferenceConfig,
     ModelConfig,
