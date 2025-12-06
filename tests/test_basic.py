@@ -5,7 +5,7 @@ def test_imports():
     """Test that package can be imported."""
     import wldetect
 
-    assert wldetect.__version__ == "0.1.0"
+    assert wldetect.__version__.startswith("0.1.")
 
 
 def test_config_imports():

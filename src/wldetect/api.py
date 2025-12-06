@@ -111,7 +111,7 @@ class WLDetect:
             lookup_fp8 = lookup_table.view(ml_dtypes.float8_e4m3fn)
         else:
             raise ValueError(
-                f"Unknown FP8 dtype_id={dtype_id[0]}. Expected 26 (E3M4) or 0 (E4M3FN)"
+                f"Expected fp8_e4m3fn (0) or fp8_e3m4 (26); got dtype_id={dtype_id[0]}"
             )
 
         # Dequantize to fp32 and apply scale factor
