@@ -23,7 +23,11 @@ def run(args) -> int:
 
     from wldetect.config.loader import load_model_config, load_training_config
     from wldetect.embeddings import EmbeddingsManager
-    from wldetect.training.lookup_table import compute_lookup_table, save_lookup_table_e3m4
+    from wldetect.training.lookup_table import (
+        compute_lookup_table,
+        compute_lookup_table_exp,
+        save_lookup_table_exp,
+    )
 
     print_header(logger, "LOOKUP TABLE GENERATION")
 
@@ -54,6 +58,9 @@ def run(args) -> int:
     projection_weight = state_dict["projection.weight"].cpu().numpy()  # (n_langs, hidden_dim)
     projection_bias = state_dict["projection.bias"].cpu().numpy()  # (n_langs,)
     token_weights = state_dict["token_weights"].cpu().numpy()  # (vocab_size, 1)
+    token_mask = None
+    if "token_mask" in state_dict:
+        token_mask = state_dict["token_mask"].cpu().numpy().reshape(-1).astype(bool)
 
     logger.info(
         f"Extracted weights: projection={projection_weight.shape}, bias={projection_bias.shape}, token_weights={token_weights.shape}"
@@ -71,8 +78,8 @@ def run(args) -> int:
         logger.error("Run training first to generate embeddings cache")
         return 1
 
-    # Compute lookup table
-    logger.info("\nComputing lookup table")
+    # Compute lookup table (raw logits)
+    logger.info("\nComputing lookup table (raw logits)")
     lookup_table = compute_lookup_table(
         embeddings=embeddings,
         token_weights=token_weights,
@@ -80,19 +87,36 @@ def run(args) -> int:
         projection_bias=projection_bias,
     )
 
-    # Save as fp8_e3m4
-    output_dir = Path(args.output_dir)
-    logger.info(f"\nSaving fp8_e3m4 lookup table to {output_dir}")
-    saved_path = save_lookup_table_e3m4(
+    # Apply exp and mask
+    logger.info("\nApplying exp() and masking")
+    lookup_table_exp = compute_lookup_table_exp(
         lookup_table_fp32=lookup_table,
+        token_mask=token_mask,
+    )
+
+    # Save exp lookup table
+    output_dir = Path(args.output_dir)
+    threshold = getattr(args, "threshold", 10.0)
+    sparse = not getattr(args, "dense", False)  # Default to sparse
+
+    logger.info(f"\nSaving exp lookup table to {output_dir}")
+    if sparse:
+        logger.info(f"Format: sparse (threshold={threshold})")
+    else:
+        logger.info("Format: dense")
+
+    exp_path = save_lookup_table_exp(
+        lookup_table_exp=lookup_table_exp,
         output_dir=output_dir,
         base_name="lookup_table",
+        threshold=threshold,
+        sparse=sparse,
     )
 
     print_header(logger, "LOOKUP TABLE GENERATED")
-    size_mb = saved_path.stat().st_size / (1024**2)
-    logger.info(f"  {saved_path.name} ({size_mb:.1f} MB)")
-    logger.info(f"  Location: {saved_path}")
+    size_mb = exp_path.stat().st_size / (1024**2)
+    logger.info(f"  {exp_path.name} ({size_mb:.1f} MB)")
+    logger.info(f"  Location: {exp_path}")
     logger.info("=" * 60 + "\n")
 
     return 0

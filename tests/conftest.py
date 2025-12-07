@@ -77,7 +77,70 @@ def realistic_model_config(realistic_model_config_dict):
     return ModelConfig(**realistic_model_config_dict)
 
 
-# ==== FP8 Lookup Table Fixtures ====
+# ==== Exp Lookup Table Fixtures ====
+
+
+@pytest.fixture
+def minimal_exp_lookup_table(tmp_path):
+    """Create minimal exp lookup table for testing (100 tokens × 3 languages)."""
+    from safetensors.numpy import save_file
+
+    # Small vocab (100 tokens), 3 languages
+    vocab_size, n_langs = 100, 3
+
+    # Create random exp values (positive, as they come from exp())
+    np.random.seed(42)
+    lookup_exp = np.abs(np.random.randn(vocab_size, n_langs).astype(np.float32)) + 0.1
+
+    # Save as dense exp format
+    path = tmp_path / "lookup_table_exp.safetensors"
+    save_file(
+        {
+            "lookup_table": lookup_exp,
+            "dtype": np.array([32], dtype=np.uint8),  # 32 = dense exp format
+            "shape": np.array([vocab_size, n_langs], dtype=np.int64),
+        },
+        str(path),
+    )
+
+    return path
+
+
+# ==== FP8 Lookup Table Fixtures (Legacy, for compatibility tests) ====
+
+
+@pytest.fixture
+def realistic_exp_lookup_table(tmp_path):
+    """Create realistic exp lookup table (1000 tokens × 10 languages)."""
+    from safetensors.numpy import save_file
+
+    vocab_size, n_langs = 1000, 10
+
+    # Create random exp values (positive, as they come from exp())
+    np.random.seed(42)
+    # Add some structure: tokens have language affinity
+    base_exp = np.abs(np.random.randn(vocab_size, n_langs).astype(np.float32)) + 0.1
+
+    # Make some tokens language-specific (higher exp values for specific language)
+    for i in range(vocab_size):
+        preferred_lang = i % n_langs
+        base_exp[i, preferred_lang] += 3.0
+
+    # Save as dense exp format
+    path = tmp_path / "lookup_table_exp.safetensors"
+    save_file(
+        {
+            "lookup_table": base_exp,
+            "dtype": np.array([32], dtype=np.uint8),  # 32 = dense exp format
+            "shape": np.array([vocab_size, n_langs], dtype=np.int64),
+        },
+        str(path),
+    )
+
+    return path
+
+
+# ==== FP8 Lookup Table Fixtures (Legacy, for compatibility tests) ====
 
 
 @pytest.fixture
@@ -102,6 +165,28 @@ def minimal_fp8_lookup_table(tmp_path):
         {
             "lookup_table": lookup_uint8,
             "dtype": np.array([26], dtype=np.uint8),  # 26 = fp8_e3m4
+            "shape": np.array([vocab_size, n_langs], dtype=np.int64),
+        },
+        str(path),
+    )
+
+    return path
+
+
+@pytest.fixture
+def minimal_fp16_lookup_table(tmp_path):
+    """Create minimal fp16 lookup table (100 tokens × 3 languages)."""
+    from safetensors.numpy import save_file
+
+    vocab_size, n_langs = 100, 3
+    np.random.seed(123)
+    lookup_fp16 = (np.random.randn(vocab_size, n_langs) * 0.5).astype(np.float16)
+
+    path = tmp_path / "lookup_table_fp16.safetensors"
+    save_file(
+        {
+            "lookup_table": lookup_fp16,
+            "dtype": np.array([31], dtype=np.uint8),  # 31 = fp16 raw
             "shape": np.array([vocab_size, n_langs], dtype=np.int64),
         },
         str(path),
@@ -207,7 +292,7 @@ def realistic_tokenizer(tmp_path):
 
 
 @pytest.fixture
-def minimal_model_dir(tmp_path, minimal_model_config_dict, minimal_fp8_lookup_table):
+def minimal_model_dir(tmp_path, minimal_model_config_dict, minimal_exp_lookup_table):
     """Complete minimal model directory with all required files."""
     model_dir = tmp_path / "minimal_model"
     model_dir.mkdir()
@@ -218,13 +303,30 @@ def minimal_model_dir(tmp_path, minimal_model_config_dict, minimal_fp8_lookup_ta
         yaml.safe_dump(minimal_model_config_dict, f)
 
     # Copy lookup table
-    shutil.copy(minimal_fp8_lookup_table, model_dir / "lookup_table_fp8_e3m4.safetensors")
+    shutil.copy(minimal_exp_lookup_table, model_dir / "lookup_table_exp.safetensors")
 
     return model_dir
 
 
 @pytest.fixture
-def realistic_model_dir(tmp_path, realistic_model_config_dict, realistic_fp8_lookup_table):
+def minimal_model_dir_fp16(tmp_path, minimal_model_config_dict, minimal_exp_lookup_table):
+    """Model directory - now uses exp format (fp16 is legacy)."""
+    model_dir = tmp_path / "minimal_model_fp16"
+    model_dir.mkdir()
+
+    # Save model config
+    config_path = model_dir / "model_config.yaml"
+    with open(config_path, "w") as f:
+        yaml.safe_dump(minimal_model_config_dict, f)
+
+    # Copy lookup table (now uses exp format)
+    shutil.copy(minimal_exp_lookup_table, model_dir / "lookup_table_exp.safetensors")
+
+    return model_dir
+
+
+@pytest.fixture
+def realistic_model_dir(tmp_path, realistic_model_config_dict, realistic_exp_lookup_table):
     """Complete realistic model directory with all required files."""
     model_dir = tmp_path / "realistic_model"
     model_dir.mkdir()
@@ -235,7 +337,7 @@ def realistic_model_dir(tmp_path, realistic_model_config_dict, realistic_fp8_loo
         yaml.safe_dump(realistic_model_config_dict, f)
 
     # Copy lookup table
-    shutil.copy(realistic_fp8_lookup_table, model_dir / "lookup_table_fp8_e3m4.safetensors")
+    shutil.copy(realistic_exp_lookup_table, model_dir / "lookup_table_exp.safetensors")
 
     return model_dir
 

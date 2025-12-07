@@ -15,7 +15,8 @@ def run(args) -> int:
     """
     logger = setup_logging()
 
-    logger.info(f"Loading model from {args.model_path}...")
+    model_desc = "bundled model" if args.model_path is None else args.model_path
+    logger.info(f"Loading model from {model_desc}...")
     detector = WLDetect.load(args.model_path)
 
     # Get text from args or file

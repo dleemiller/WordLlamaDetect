@@ -6,8 +6,8 @@ from wldetect.cli.utils import ensure_training_deps, print_header, setup_logging
 from wldetect.tokenization import disable_chat_template
 
 
-def _eval_fp8_mode(args, logger) -> int:
-    """Evaluate FP8 inference model.
+def _eval_inference_mode(args, logger) -> int:
+    """Evaluate inference model (exp lookup table).
 
     Args:
         args: Command arguments
@@ -23,10 +23,10 @@ def _eval_fp8_mode(args, logger) -> int:
         save_flores_evaluation,
     )
 
-    print_header(logger, "WLDETECT FP8 EVALUATION")
+    print_header(logger, "WLDETECT INFERENCE EVALUATION")
 
     # Load model
-    logger.info("\nStep 1: Load fp8 inference model")
+    logger.info("\nStep 1: Load exp inference model")
     detector = WLDetect.load(args.model_path)
     logger.info(f"Model: {detector.config.model.name if detector.config.model else 'Multi-model'}")
     logger.info(f"Languages: {detector.config.n_languages}")
@@ -219,6 +219,6 @@ def run(args) -> int:
     logger = setup_logging()
 
     if args.model_path:
-        return _eval_fp8_mode(args, logger)
+        return _eval_inference_mode(args, logger)
     else:
         return _eval_pytorch_mode(args, logger)

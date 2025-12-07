@@ -1,5 +1,6 @@
 """Simple API for language detection."""
 
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -7,7 +8,9 @@ from safetensors import safe_open
 from tokenizers import Tokenizer
 
 from wldetect.config.loader import load_model_config
-from wldetect.inference.utils import avg_pool, logsumexp_pool, max_pool, softmax
+from wldetect.inference.utils import softmax
+
+logger = logging.getLogger("wldetect")
 
 
 class WLDetect:
@@ -36,12 +39,13 @@ class WLDetect:
         config_path = model_dir / "model_config.yaml"
         self.config = load_model_config(config_path)
 
-        # Load fp8 lookup table
-        lookup_table_path = model_dir / "lookup_table_fp8_e3m4.safetensors"
+        # Load exp lookup table
+        lookup_table_path = model_dir / "lookup_table_exp.safetensors"
         if not lookup_table_path.exists():
-            raise FileNotFoundError(f"FP8 lookup table not found: {lookup_table_path}")
+            raise FileNotFoundError(f"Exp lookup table not found: {lookup_table_path}")
 
-        self.lookup_table = self._load_fp8_lookup_table(lookup_table_path)
+        self.lookup_table = self._load_exp_lookup_table(lookup_table_path)
+        logger.info(f"Loaded exp lookup table: {lookup_table_path.name}")
 
         # Load tokenizer
         first_model = self.config.all_models[0]
@@ -52,7 +56,6 @@ class WLDetect:
 
         # Config
         self.max_length = self.config.inference.max_sequence_length
-        self.pooling = self.config.inference.pooling
 
     @classmethod
     def load(cls, path: str | Path | None = None) -> "WLDetect":
@@ -70,40 +73,51 @@ class WLDetect:
 
         return cls(path)
 
-    def _load_fp8_lookup_table(self, path: Path) -> np.ndarray:
-        """Load fp8 E3M4 lookup table from safetensors.
+    def _load_exp_lookup_table(self, path: Path) -> np.ndarray:
+        """Load pre-exponentiated lookup table from safetensors.
+
+        Supports both dense (dtype_id=32) and sparse COO (dtype_id=33) formats.
 
         Args:
-            path: Path to fp8 lookup table file
+            path: Path to exp lookup table file
 
         Returns:
-            Lookup table as fp32 numpy array (vocab_size, n_langs)
+            Lookup table as fp32 array (vocab_size, n_langs)
         """
-        import ml_dtypes
-
         with safe_open(path, framework="numpy") as f:
-            lookup_uint8 = f.get_tensor("lookup_table")
-            dtype_id = f.get_tensor("dtype")
-            shape = f.get_tensor("shape")
-            # Load scale factor if present (for scaled quantization)
-            scale = f.get_tensor("scale")[0] if "scale" in f.keys() else 1.0
+            dtype_id = f.get_tensor("dtype")[0]
 
-        # Reconstruct fp8 array
-        lookup_table = lookup_uint8.reshape(shape)
+            if dtype_id == 32:
+                # Dense format
+                lookup_table = f.get_tensor("lookup_table").astype(np.float32)
+                logger.info(
+                    f"Loaded dense exp lookup table: shape={lookup_table.shape}, dtype={lookup_table.dtype}"
+                )
+                return lookup_table
 
-        # Verify E3M4 format and dequantize
-        if dtype_id[0] != 26:
-            raise ValueError(f"Expected fp8_e3m4 (dtype_id=26); got dtype_id={dtype_id[0]}")
+            elif dtype_id == 33:
+                # Sparse COO format
+                data = f.get_tensor("data").astype(np.float32)
+                row = f.get_tensor("row").astype(np.int32)
+                col = f.get_tensor("col").astype(np.int32)
+                shape = tuple(f.get_tensor("shape"))
+                threshold = f.get_tensor("threshold")[0]
 
-        # FP8 E3M4: 3-bit exponent, 4-bit mantissa (better precision, smaller range)
-        lookup_fp8 = lookup_table.view(ml_dtypes.float8_e3m4)
+                # Reconstruct dense array
+                lookup_table = np.zeros(shape, dtype=np.float32)
+                lookup_table[row, col] = data
 
-        # Dequantize to fp32 and apply scale factor
-        lookup_fp32 = lookup_fp8.astype(np.float32)
-        if scale != 1.0:
-            lookup_fp32 = lookup_fp32 * scale
+                sparsity = 100.0 * (1 - len(data) / (shape[0] * shape[1]))
+                logger.info(f"Loaded sparse exp lookup table: shape={shape}, dtype=float32")
+                logger.info(
+                    f"  Sparse storage: {len(data):,} values ({sparsity:.2f}% sparse, threshold={threshold})"
+                )
+                return lookup_table
 
-        return lookup_fp32
+            else:
+                raise ValueError(
+                    f"Unknown dtype_id={dtype_id}. Expected 32 (dense) or 33 (sparse COO)"
+                )
 
     def _tokenize(self, text: str) -> np.ndarray:
         """Tokenize single text.
@@ -134,6 +148,12 @@ class WLDetect:
     def _detect_from_tokens(self, token_ids: np.ndarray) -> tuple[str, float] | None:
         """Core detection logic from token IDs.
 
+        Uses pre-exponentiated lookup table:
+        - Lookup exp values for each token
+        - Sum the exp values (this is sum(exp(logits)))
+        - Take log to get logsumexp: log(sum(exp(logits)))
+        - Apply softmax to get probabilities
+
         Args:
             token_ids: Token ID array
 
@@ -143,18 +163,16 @@ class WLDetect:
         if len(token_ids) == 0:
             return None
 
-        # Lookup
-        logits = self.lookup_table[token_ids]  # (seq_len, n_langs)
+        # Lookup pre-exponentiated values: (seq_len, n_langs)
+        exp_values = self.lookup_table[token_ids]
 
-        # Pool
-        if self.pooling == "logsumexp":
-            pooled = logsumexp_pool(logits, axis=0)
-        elif self.pooling == "average":
-            pooled = avg_pool(logits, axis=0)
-        else:  # max (and other pooling methods fall back to max)
-            pooled = max_pool(logits, axis=0)
+        # Sum exp values: (n_langs,)
+        summed = np.sum(exp_values, axis=0)
 
-        # Softmax
+        # Take log to complete logsumexp: log(sum(exp(logits)))
+        pooled = np.log(np.maximum(summed, 1e-12))
+
+        # Softmax to get probabilities
         probs = softmax(pooled)
 
         # Get top prediction

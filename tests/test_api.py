@@ -20,7 +20,6 @@ class TestWLDetectInit:
         assert wld.lookup_table.shape == (100, 3)
         assert wld.lookup_table.dtype == np.float32
         assert wld.max_length == 64
-        assert wld.pooling == "logsumexp"
         assert len(wld.index_to_language) == 3
         assert wld.index_to_language[0] == "eng_Latn"
 
@@ -86,8 +85,8 @@ class TestWLDetectLoad:
 
         shutil.copy(minimal_model_dir / "model_config.yaml", models_dir / "model_config.yaml")
         shutil.copy(
-            minimal_model_dir / "lookup_table_fp8_e3m4.safetensors",
-            models_dir / "lookup_table_fp8_e3m4.safetensors",
+            minimal_model_dir / "lookup_table_exp.safetensors",
+            models_dir / "lookup_table_exp.safetensors",
         )
 
         wld = WLDetect.load()
@@ -113,17 +112,17 @@ class TestWLDetectFP8Loading:
     def test_fp8_invalid_dtype_id(
         self, tmp_path, minimal_model_config_dict, mock_tokenizer_from_pretrained
     ):
-        """Test error on invalid dtype_id in fp8 lookup table."""
+        """Test error on invalid dtype_id in exp lookup table."""
         from safetensors.numpy import save_file
 
         # Create lookup table with wrong dtype_id
         save_file(
             {
-                "lookup_table": np.zeros((100, 3), dtype=np.uint8),
+                "lookup_table": np.zeros((100, 3), dtype=np.float32),
                 "dtype": np.array([99], dtype=np.uint8),  # Invalid dtype
                 "shape": np.array([100, 3], dtype=np.int64),
             },
-            str(tmp_path / "lookup_table_fp8_e3m4.safetensors"),
+            str(tmp_path / "lookup_table_exp.safetensors"),
         )
 
         # Create model config
@@ -132,7 +131,7 @@ class TestWLDetectFP8Loading:
             yaml.safe_dump(minimal_model_config_dict, f)
 
         # Should raise ValueError for invalid dtype
-        with pytest.raises(ValueError, match="Expected fp8_e3m4"):
+        with pytest.raises(ValueError, match="Expected 32.*or 33"):
             WLDetect(tmp_path)
 
     def test_fp8_shape_metadata(self, minimal_model_dir, mock_tokenizer_from_pretrained):
@@ -141,6 +140,15 @@ class TestWLDetectFP8Loading:
 
         # Shape should match metadata
         assert wld.lookup_table.shape == (100, 3)  # vocab_size=100, n_langs=3
+
+    def test_fp16_lookup_table(self, minimal_model_dir_fp16, mock_tokenizer_from_pretrained):
+        """Test fp16 lookup table loads and dequantizes to fp32."""
+        wld = WLDetect.load(minimal_model_dir_fp16)
+
+        assert wld.lookup_table.dtype == np.float32
+        assert wld.lookup_table.shape == (100, 3)
+        # Values should be finite and come from fp16 path
+        assert np.isfinite(wld.lookup_table).all()
 
 
 class TestWLDetectPredict:
@@ -223,7 +231,7 @@ class TestWLDetectPooling:
         pooling_method,
         tmp_path,
         minimal_model_config_dict,
-        minimal_fp8_lookup_table,
+        minimal_exp_lookup_table,
         mock_tokenizer_from_pretrained,
     ):
         """Test that different pooling methods work."""
@@ -242,7 +250,7 @@ class TestWLDetectPooling:
         # Copy lookup table
         import shutil
 
-        shutil.copy(minimal_fp8_lookup_table, model_dir / "lookup_table_fp8_e3m4.safetensors")
+        shutil.copy(minimal_exp_lookup_table, model_dir / "lookup_table_exp.safetensors")
 
         # Load and predict
         wld = WLDetect.load(model_dir)
@@ -286,7 +294,6 @@ class TestWLDetectRealistic:
         assert wld.config.n_languages == 10
         assert wld.lookup_table.shape == (1000, 10)
         assert wld.max_length == 128
-        assert wld.pooling == "logsumexp"
 
     def test_realistic_batch_prediction(
         self, realistic_model_dir, mock_tokenizer_from_pretrained_realistic

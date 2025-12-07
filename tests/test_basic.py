@@ -34,5 +34,3 @@ def test_inference_imports():
 
     assert hasattr(WLDetect, "load")
     assert hasattr(utils, "softmax")
-    assert hasattr(utils, "max_pool")
-    assert hasattr(utils, "avg_pool")

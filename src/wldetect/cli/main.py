@@ -28,7 +28,7 @@ def main() -> int:
     # Eval command
     eval_parser = subparsers.add_parser(
         "eval",
-        help="Evaluate a model on FLORES (PyTorch checkpoint or fp8 inference model)",
+        help="Evaluate a model on FLORES (PyTorch checkpoint or exp inference model)",
     )
     mode_group = eval_parser.add_mutually_exclusive_group(required=True)
     mode_group.add_argument(
@@ -39,7 +39,7 @@ def main() -> int:
     mode_group.add_argument(
         "--model-path",
         type=str,
-        help="Path to model directory with fp8 lookup table (inference mode)",
+        help="Path to model directory with exp lookup table (inference mode)",
     )
     eval_parser.add_argument(
         "--checkpoint",
@@ -62,7 +62,7 @@ def main() -> int:
         "--batch-size",
         type=int,
         default=None,
-        help="Override evaluation batch size (default: 512 for fp8, training config for PyTorch)",
+        help="Override evaluation batch size (default: 512 for exp, training config for PyTorch)",
     )
     eval_parser.add_argument(
         "--device",
@@ -87,8 +87,8 @@ def main() -> int:
     detect_parser.add_argument(
         "--model-path",
         type=str,
-        required=True,
-        help="Path to model directory",
+        default=None,
+        help="Path to model directory (default: bundled model)",
     )
     group = detect_parser.add_mutually_exclusive_group()
     group.add_argument(
@@ -105,7 +105,7 @@ def main() -> int:
     # Create-lookup command
     create_lookup_parser = subparsers.add_parser(
         "create-lookup",
-        help="Generate lookup table from a checkpoint",
+        help="Generate exp lookup table from a checkpoint",
     )
     create_lookup_parser.add_argument(
         "--checkpoint",
@@ -123,7 +123,18 @@ def main() -> int:
         "--output-dir",
         type=str,
         required=True,
-        help="Output directory for lookup table",
+        help="Output directory for exp lookup table",
+    )
+    create_lookup_parser.add_argument(
+        "--threshold",
+        type=float,
+        default=10.0,
+        help="Sparsification threshold - values < threshold are set to 0 (default: 10.0)",
+    )
+    create_lookup_parser.add_argument(
+        "--dense",
+        action="store_true",
+        help="Save in dense format instead of sparse (default: sparse)",
     )
 
     args = parser.parse_args()

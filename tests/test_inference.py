@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from wldetect.inference.utils import apply_projection, avg_pool, max_pool, softmax
+from wldetect.inference.utils import softmax
 
 
 def test_softmax():
@@ -30,74 +30,17 @@ def test_softmax_numerical_stability():
     assert not np.any(np.isinf(result))
 
 
-def test_max_pool():
-    """Test max pooling."""
-    x = np.array(
-        [
-            [1.0, 2.0, 3.0],
-            [4.0, 5.0, 6.0],
-            [0.5, 1.5, 2.5],
-        ]
-    )
+def test_softmax_2d():
+    """Test softmax on 2D array."""
+    x = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    result = softmax(x, axis=-1)
 
-    result = max_pool(x, axis=0)
-    expected = np.array([4.0, 5.0, 6.0])
+    # Check each row sums to 1
+    assert np.allclose(result.sum(axis=-1), 1.0)
 
-    np.testing.assert_array_equal(result, expected)
+    # Check all values are positive
+    assert np.all(result > 0)
 
-
-def test_avg_pool():
-    """Test average pooling."""
-    x = np.array(
-        [
-            [1.0, 2.0, 3.0],
-            [3.0, 4.0, 5.0],
-            [5.0, 6.0, 7.0],
-        ]
-    )
-
-    result = avg_pool(x, axis=0)
-    expected = np.array([3.0, 4.0, 5.0])
-
-    np.testing.assert_array_almost_equal(result, expected)
-
-
-def test_apply_projection():
-    """Test linear projection."""
-    embeddings = np.array([[1.0, 2.0, 3.0]])  # (1, 3)
-    weight = np.array(
-        [
-            [0.5, 0.5, 0.5],
-            [1.0, 0.0, -1.0],
-        ]
-    )  # (2, 3)
-    bias = np.array([0.1, 0.2])  # (2,)
-
-    result = apply_projection(embeddings, weight, bias)
-
-    # Expected: embeddings @ weight.T + bias
-    # [[1, 2, 3]] @ [[0.5, 1.0], [0.5, 0.0], [0.5, -1.0]] + [0.1, 0.2]
-    # [[3.0, -2.0]] + [0.1, 0.2] = [[3.1, -1.8]]
-    expected = np.array([[3.1, -1.8]])
-
-    np.testing.assert_array_almost_equal(result, expected)
-
-
-def test_apply_projection_sequence():
-    """Test projection on sequence of embeddings."""
-    embeddings = np.array(
-        [
-            [1.0, 2.0],
-            [3.0, 4.0],
-            [5.0, 6.0],
-        ]
-    )  # (3, 2)
-    weight = np.array([[1.0, 1.0]])  # (1, 2)
-    bias = np.array([0.0])  # (1,)
-
-    result = apply_projection(embeddings, weight, bias)
-
-    # Each row sums: [3.0], [7.0], [11.0]
-    expected = np.array([[3.0], [7.0], [11.0]])
-
-    np.testing.assert_array_almost_equal(result, expected)
+    # Check largest values have largest probabilities
+    assert np.argmax(result[0]) == 2
+    assert np.argmax(result[1]) == 2
