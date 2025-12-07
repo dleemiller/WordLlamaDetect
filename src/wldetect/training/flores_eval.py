@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from wldetect.data.flores import create_flores_dataset, get_flores_language_distribution
-from wldetect.training.trainer import LanguageDetectionDataset, collate_fn
+from wldetect.training.datasets import LanguageDetectionDataset, collate_fn
 
 logger = logging.getLogger("wldetect")
 console = Console()
@@ -25,16 +25,18 @@ def _prepare_flores_dataset(
     split: str,
     hf_dataset: str | None,
     cache_dir: str | None,
+    show_summary: bool = True,
 ):
     """Load FLORES dataset and language distribution."""
     hf_name = hf_dataset or "openlanguagedata/flores_plus"
 
-    console.print(
-        Panel(
-            f"[bold cyan]FLORES EVALUATION[/bold cyan]\nSplit: {split} | Dataset: {hf_name}",
-            expand=False,
+    if show_summary:
+        console.print(
+            Panel(
+                f"[bold cyan]FLORES EVALUATION[/bold cyan]\nSplit: {split} | Dataset: {hf_name}",
+                expand=False,
+            )
         )
-    )
 
     logger.info("Loading FLORES dataset...")
     flores_dataset, mapped_languages, skipped_languages = create_flores_dataset(
@@ -52,17 +54,18 @@ def _prepare_flores_dataset(
         cache_dir=cache_dir,
     )
 
-    dist_table = Table(title="Language Distribution (Top 10)", show_header=True)
-    dist_table.add_column("Language", style="cyan")
-    dist_table.add_column("Sentences", justify="right", style="green")
+    if show_summary:
+        dist_table = Table(title="Language Distribution (Top 10)", show_header=True)
+        dist_table.add_column("Language", style="cyan")
+        dist_table.add_column("Sentences", justify="right", style="green")
 
-    for lang, count in sorted(distribution.items(), key=lambda x: -x[1])[:10]:
-        dist_table.add_row(lang, str(count))
+        for lang, count in sorted(distribution.items(), key=lambda x: -x[1])[:10]:
+            dist_table.add_row(lang, str(count))
 
-    if len(distribution) > 10:
-        dist_table.add_row(f"... and {len(distribution) - 10} more", "", style="dim")
+        if len(distribution) > 10:
+            dist_table.add_row(f"... and {len(distribution) - 10} more", "", style="dim")
 
-    console.print(dist_table)
+        console.print(dist_table)
 
     if skipped_languages:
         logger.warning(
@@ -70,7 +73,7 @@ def _prepare_flores_dataset(
             f"{sorted(skipped_languages)[:10]}{'...' if len(skipped_languages) > 10 else ''}"
         )
 
-    return flores_dataset, skipped_languages
+    return flores_dataset, skipped_languages, distribution
 
 
 def _compute_metrics(labels: np.ndarray, predictions: np.ndarray, model_config) -> dict:
@@ -174,6 +177,54 @@ def _print_metrics(metrics: dict) -> None:
         console.print(bottom_table)
 
 
+def create_flores_eval_loader(
+    model_config,
+    tokenizer,
+    split: str = "dev",
+    batch_size: int = 32,
+    num_workers: int = 0,
+    hf_dataset: str | None = None,
+    cache_dir: str | None = None,
+    show_summary: bool = True,
+):
+    """Build a FLORES DataLoader for model evaluation (shared by trainer/CLI)."""
+    flores_dataset, skipped_languages, distribution = _prepare_flores_dataset(
+        model_config=model_config,
+        split=split,
+        hf_dataset=hf_dataset,
+        cache_dir=cache_dir,
+        show_summary=show_summary,
+    )
+
+    eval_dataset = LanguageDetectionDataset(
+        flores_dataset,
+        tokenizer,
+        model_config.languages,
+        max_length=model_config.inference.max_sequence_length,
+    )
+
+    loader = DataLoader(
+        eval_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=collate_fn,
+        num_workers=num_workers,
+        pin_memory=True,
+        prefetch_factor=4 if num_workers > 0 else None,
+        persistent_workers=True if num_workers > 0 else False,
+    )
+
+    if skipped_languages:
+        mapping_info = (
+            f"Skipped FLORES languages (unmapped to model): "
+            f"{sorted(skipped_languages)[:10]} (total {len(skipped_languages)})"
+        )
+    else:
+        mapping_info = "All FLORES languages mapped to model languages."
+
+    return loader, skipped_languages, mapping_info, distribution
+
+
 def evaluate_on_flores_inference(
     detector,
     model_config,
@@ -183,7 +234,7 @@ def evaluate_on_flores_inference(
     cache_dir: str | None = None,
 ) -> dict:
     """Evaluate fp8 inference model on FLORES-200 dataset from HuggingFace."""
-    flores_dataset, skipped_languages = _prepare_flores_dataset(
+    flores_dataset, skipped_languages, _ = _prepare_flores_dataset(
         model_config=model_config,
         split=split,
         hf_dataset=hf_dataset,
@@ -225,29 +276,15 @@ def evaluate_on_flores(
 ) -> dict:
     """Evaluate PyTorch model on FLORES-200 using a shared metrics pipeline."""
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    flores_dataset, skipped_languages = _prepare_flores_dataset(
+    eval_loader, skipped_languages, _, _ = create_flores_eval_loader(
         model_config=model_config,
+        tokenizer=tokenizer,
         split=split,
+        batch_size=batch_size,
+        num_workers=num_workers,
         hf_dataset=hf_dataset,
         cache_dir=cache_dir,
-    )
-
-    eval_dataset = LanguageDetectionDataset(
-        flores_dataset,
-        tokenizer,
-        model_config.languages,
-        max_length=model_config.inference.max_sequence_length,
-    )
-
-    eval_loader = DataLoader(
-        eval_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        collate_fn=collate_fn,
-        num_workers=num_workers,
-        pin_memory=True,
-        prefetch_factor=4 if num_workers > 0 else None,
-        persistent_workers=True if num_workers > 0 else False,
+        show_summary=True,
     )
 
     model.eval()

@@ -87,30 +87,25 @@ def test_get_flores_loader_uses_hf_dataset(tmp_path: Path):
         model_config=mock_model_config,
     )
 
-    # Mock the FLORES dataset functions
-    with (
-        patch("wldetect.training.trainer.create_flores_dataset") as mock_create,
-        patch("wldetect.training.trainer.get_flores_language_distribution") as mock_get_dist,
-    ):
-        # Setup mocks to return minimal valid data
-        mock_create.return_value = ([], {}, set())
-        mock_get_dist.return_value = {}
+    # Mock the FLORES loader helper
+    with patch("wldetect.training.trainer.create_flores_eval_loader") as mock_create_loader:
+        mock_loader = MagicMock()
+        mock_loader.dataset = []
+        mock_create_loader.return_value = (mock_loader, set(), "All mapped", {})
 
         # Call should not raise AttributeError for flores_dir or flores_source
         _ = trainer._get_flores_loader()
 
-        # Verify the functions were called with correct parameters (HF-only)
-        mock_create.assert_called_once_with(
-            mock_model_config.languages,
-            "dev",
+        # Verify the helper was called with HF dataset params
+        mock_create_loader.assert_called_once_with(
+            model_config=mock_model_config,
+            tokenizer=mock_tokenizer,
+            split="dev",
+            batch_size=32,
+            num_workers=4,
             hf_dataset="openlanguagedata/flores_plus",
             cache_dir=str(tmp_path / "cache"),
-        )
-        mock_get_dist.assert_called_once_with(
-            mock_model_config.languages,
-            "dev",
-            hf_dataset="openlanguagedata/flores_plus",
-            cache_dir=str(tmp_path / "cache"),
+            show_summary=False,
         )
 
     trainer.close()
