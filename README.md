@@ -12,7 +12,7 @@ WordLlama Detect is a language detection library that uses static embeddings fro
 
 **Features:**
 - NumPy-only inference with no PyTorch dependency
-- Pre-trained model (150 languages)
+- Pre-trained model (148 languages)
 - FP8 quantized lookup table (38MB)
 - Fast inference: ~30k texts/s single thread
 - Simple API
@@ -67,10 +67,11 @@ uv run wldetect detect --model-path /path/to/model --text "Hello"
 
 ## Bundled Model
 
-WLDetect ships with a pre-trained model based on Gemma3-27B token embeddings:
-- **Languages**: 150 (from OpenLID-v2 dataset)
-- **Model size**: 38MB (fp8-quantized lookup table)
-- **Accuracy**: XX% on FLORES+ dev set
+WLDetect ships with a pre-trained model based on concatenated Gemma3-27B + Gemma3-4B token embeddings:
+- **Languages**: 148 (from OpenLID-v2 dataset)
+- **Model size**: 38MB (fp8_e3m4 quantized lookup table)
+- **Accuracy**: 92.73% on FLORES+ dev set (92.76% on devtest)
+- **F1 (macro)**: 92.54% on dev (92.60% on devtest)
 - **Language codes**: ISO 639-3 + ISO 15924 script (e.g., `eng_Latn`, `cmn_Hans`, `arb_Arab`)
 
 The model loads automatically with `WLDetect.load()` - no separate download needed.
@@ -97,19 +98,36 @@ probs = softmax(pooled)           # O(n_langs)
 
 ### Quantization
 
-The lookup table is quantized from fp32 to fp8_e4m3fn format:
+The lookup table is quantized from fp32 to fp8_e3m4 format:
 - **Original size**: ~150MB (fp32)
-- **Quantized size**: 38MB (fp8_e4m3fn)
+- **Quantized size**: 38MB (fp8_e3m4)
+- **E3M4 format**: 3-bit exponent, 4-bit mantissa (better precision than E4M3FN)
 
 ## Performance
 
-TODO: BENCHMARK AND ACCURACY
+### FLORES+ Benchmark Results
+
+Evaluated on FLORES+ dataset (148 languages, ~1000 sentences per language):
+
+| Split   | Accuracy | F1 (macro) | F1 (weighted) | Samples  |
+|---------|----------|------------|---------------|----------|
+| dev     | 92.73%   | 92.54%     | 92.54%        | 150,547  |
+| devtest | 92.76%   | 92.60%     | 92.59%        | 153,824  |
+
+**Top performing languages** (dev): `asm_Beng`, `ben_Beng`, `dzo_Tibt`, `ell_Grek`, `guj_Gujr`, `heb_Hebr`, `hun_Latn`, `hye_Armn`, `jpn_Jpan`, `kan_Knda` (100% accuracy)
+
+**Challenging languages** (dev): `bho_Deva` (24.6%), `arz_Arab` (33.1%), `zsm_Latn` (45.8%) - confusion with closely related dialects
+
+### Inference Speed
+
+- **Single-threaded**: ~30,000 texts/second
+- **Batch processing**: Uses fast tokenization for optimal throughput
 
 ## Supported Languages
 
-TODO: LINK TO MODEL CONFIG
+The bundled model supports 148 languages from the OpenLID-v2 dataset. Languages use ISO 639-3 language codes with ISO 15924 script codes (e.g., `eng_Latn`, `cmn_Hans`, `arb_Arab`).
 
-Languages use ISO 639-3 language codes with ISO 15924 script codes.
+See [model_config.yaml](src/wldetect/models/model_config.yaml) for the complete list of supported languages.
 
 ## Training
 
@@ -164,7 +182,7 @@ uv run wldetect train --config configs/training/custom-training.yaml
 ```
 
 Artifacts saved to `artifacts/`:
-- `lookup_table_fp8_e4m3fn.safetensors` - Quantized lookup table (for inference)
+- `lookup_table_fp8_e3m4.safetensors` - Quantized lookup table (for inference)
 - `projection.safetensors` - Projection matrix (fp32, for fine-tuning)
 - `model_config.yaml` - Model configuration
 - `model.pt` - Full PyTorch checkpoint
@@ -183,12 +201,6 @@ uv run wldetect create-lookup \
   --checkpoint artifacts/checkpoints/checkpoint_step_100000.pt \
   --config configs/training/gemma3-27b.yaml \
   --output-dir artifacts/
-
-# Curate languages (filter by accuracy threshold)
-uv run wldetect curate \
-  --config configs/training/gemma3-27b.yaml \
-  --accuracy-threshold 0.8 \
-  --output-config configs/models/curated.yaml
 ```
 
 ### Training Details

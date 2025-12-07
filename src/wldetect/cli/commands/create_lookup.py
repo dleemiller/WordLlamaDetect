@@ -23,7 +23,7 @@ def run(args) -> int:
 
     from wldetect.config.loader import load_model_config, load_training_config
     from wldetect.embeddings import EmbeddingsManager
-    from wldetect.training.lookup_table import compute_lookup_table, save_lookup_table
+    from wldetect.training.lookup_table import compute_lookup_table, save_lookup_table_e3m4
 
     print_header(logger, "LOOKUP TABLE GENERATION")
 
@@ -80,10 +80,10 @@ def run(args) -> int:
         projection_bias=projection_bias,
     )
 
-    # Save as fp8_e4m3fn
+    # Save as fp8_e3m4
     output_dir = Path(args.output_dir)
-    logger.info(f"\nSaving fp8_e4m3fn lookup table to {output_dir}")
-    saved_path = save_lookup_table(
+    logger.info(f"\nSaving fp8_e3m4 lookup table to {output_dir}")
+    saved_path = save_lookup_table_e3m4(
         lookup_table_fp32=lookup_table,
         output_dir=output_dir,
         base_name="lookup_table",
