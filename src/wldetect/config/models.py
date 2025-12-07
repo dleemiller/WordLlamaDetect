@@ -9,7 +9,7 @@ class InferenceConfig(BaseModel):
     """Inference settings."""
 
     max_sequence_length: int = Field(default=512, gt=0)
-    pooling: Literal["max", "average", "geometric", "harmonic", "logsumexp"] = "max"
+    pooling: Literal["logsumexp"] = "logsumexp"
 
 
 class SingleModelConfig(BaseModel):
@@ -140,12 +140,6 @@ class DatasetConfig(BaseModel):
     )
 
 
-class ProjectionConfig(BaseModel):
-    """Projection layer configuration."""
-
-    dropout: float = Field(default=0.1, ge=0.0, le=1.0)
-
-
 class TrainingHyperparameters(BaseModel):
     """Training hyperparameters."""
 
@@ -155,12 +149,6 @@ class TrainingHyperparameters(BaseModel):
     optimizer: Literal["adam", "adamw", "sgd"] = "adam"
     loss: Literal["cross_entropy", "focal"] = Field(
         default="cross_entropy", description="Loss function to use during training"
-    )
-    label_smoothing: float = Field(
-        default=0.0,
-        ge=0.0,
-        lt=1.0,
-        description="Label smoothing factor applied to losses (0 disables smoothing)",
     )
 
     # Class weighting configuration
@@ -201,7 +189,9 @@ class TrainingHyperparameters(BaseModel):
     gradient_clip: float = Field(default=1.0, gt=0)
     momentum: float = Field(default=0.9, ge=0, le=1, description="Momentum for SGD optimizer")
     num_workers: int = Field(default=4, ge=0, description="Number of DataLoader worker processes")
-    projection: ProjectionConfig = Field(default_factory=ProjectionConfig)
+    projection_dropout: float = Field(
+        default=0.1, ge=0.0, le=1.0, description="Dropout for projection layer"
+    )
 
     # Token masking
     token_mask_path: str | None = Field(

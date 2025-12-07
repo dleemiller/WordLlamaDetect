@@ -48,52 +48,13 @@ def compute_lookup_table(
     return lookup_table
 
 
-def save_lookup_table(
-    lookup_table_fp32: np.ndarray,
-    output_dir: str | Path,
-    base_name: str = "lookup_table",
-) -> Path:
-    """Save lookup table as fp8_e4m3fn.
-
-    Args:
-        lookup_table_fp32: Pre-computed lookup table (fp32)
-        output_dir: Output directory
-        base_name: Base filename (without extension)
-
-    Returns:
-        Path to saved file
-    """
-    from wldetect.inference.quantization import quantize_fp8_e4m3fn
-
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Quantize to fp8_e4m3fn
-    lookup_fp8 = quantize_fp8_e4m3fn(lookup_table_fp32)
-
-    # Save as uint8 view (safetensors doesn't support ml_dtypes)
-    fp8_path = output_dir / f"{base_name}_fp8_e4m3fn.safetensors"
-    save_file(
-        {
-            "lookup_table": lookup_fp8.view(np.uint8),
-            "dtype": np.array([0], dtype=np.uint8),  # 0 = fp8_e4m3fn
-            "shape": np.array(lookup_fp8.shape, dtype=np.int64),
-        },
-        str(fp8_path),
-    )
-
-    file_size_mb = fp8_path.stat().st_size / (1024**2)
-    logger.info(f"Saved fp8_e4m3fn lookup table: {fp8_path} ({file_size_mb:.1f} MB)")
-
-    return fp8_path
-
-
 def save_lookup_table_e3m4(
     lookup_table_fp32: np.ndarray,
     output_dir: str | Path,
     base_name: str = "lookup_table",
     scale_factor: float | None = None,
     metadata: dict | None = None,
+    token_mask: np.ndarray | None = None,
 ) -> Path:
     """Save lookup table as fp8_e3m4 with scaling.
 
@@ -103,6 +64,7 @@ def save_lookup_table_e3m4(
         base_name: Base filename (without extension)
         scale_factor: Optional manual scale factor (auto-computed if None)
         metadata: Optional metadata dict (zero_weight_mask, min_count_threshold, etc.)
+        token_mask: Optional boolean mask (vocab_size,) where False = masked token
 
     Returns:
         Path to saved file
@@ -112,11 +74,18 @@ def save_lookup_table_e3m4(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Auto-compute scale factor if not provided
+    # Auto-compute scale factor if not provided (before applying mask)
     if scale_factor is None:
         max_val = np.abs(lookup_table_fp32).max()
         e3m4_max = 15.5  # E3M4 range (~±15.5)
         scale_factor = float(np.ceil(max_val / (e3m4_max * 0.9)))
+
+    # Apply mask before quantization using scaled min FP8 E3M4 value
+    if token_mask is not None:
+        lookup_table_fp32 = lookup_table_fp32.copy()
+        # E3M4 min value is approximately -15.5, scaled by scale_factor
+        e3m4_min_scaled = -15.5 * scale_factor
+        lookup_table_fp32[~token_mask] = e3m4_min_scaled
 
     # Scale and quantize
     if scale_factor > 1.0:
@@ -147,8 +116,12 @@ def compute_lookup_table_from_model(
     model,
     model_config,
     cache_dir: str | Path = "artifacts/embeddings",
-) -> np.ndarray:
-    """Compute lookup table directly from a trained model and cached embeddings."""
+) -> tuple[np.ndarray, np.ndarray | None]:
+    """Compute lookup table directly from a trained model and cached embeddings.
+
+    Returns:
+        tuple: (lookup_table, token_mask) where token_mask is None if no masking
+    """
     from wldetect.embeddings import EmbeddingsManager
 
     embeddings_manager = EmbeddingsManager(model_config, cache_dir=cache_dir)
@@ -159,32 +132,22 @@ def compute_lookup_table_from_model(
     projection_bias = model.get_projection_bias().cpu().numpy()
     token_weights = model.get_token_weights().cpu().numpy()
 
-    return compute_lookup_table(
+    # Extract token mask if present
+    token_mask = getattr(model, "token_mask", None)
+    mask_np: np.ndarray | None = None
+    if token_mask is not None:
+        mask_np = token_mask.detach().cpu().numpy().reshape(-1).astype(bool)
+
+    lookup_table = compute_lookup_table(
         embeddings=embeddings,
         token_weights=token_weights,
         projection_weight=projection_weight,
         projection_bias=projection_bias,
     )
 
-
-def save_lookup_table_from_model(
-    model,
-    model_config,
-    output_dir: str | Path,
-    cache_dir: str | Path = "artifacts/embeddings",
-    base_name: str = "lookup_table",
-) -> Path:
-    """Generate and save fp8_e4m3fn lookup table from a trained model."""
-    lookup_table = compute_lookup_table_from_model(
-        model=model,
-        model_config=model_config,
-        cache_dir=cache_dir,
-    )
-    return save_lookup_table(
-        lookup_table_fp32=lookup_table,
-        output_dir=output_dir,
-        base_name=base_name,
-    )
+    # Return lookup table and mask separately
+    # Mask will be applied in save functions using appropriate FP8 min values
+    return lookup_table, mask_np
 
 
 def save_lookup_table_e3m4_from_model(
@@ -197,17 +160,23 @@ def save_lookup_table_e3m4_from_model(
     base_name: str = "lookup_table",
 ) -> Path:
     """Generate and save fp8_e3m4 lookup table (with optional scaling/metadata)."""
-    lookup_table = compute_lookup_table_from_model(
+    lookup_table, token_mask = compute_lookup_table_from_model(
         model=model,
         model_config=model_config,
         cache_dir=cache_dir,
     )
+
+    if token_mask is not None:
+        n_masked = (~token_mask).sum()
+        logger.info(f"Applying token mask: {n_masked:,} tokens will be set to FP8 E3M4 min value")
+
     return save_lookup_table_e3m4(
         lookup_table_fp32=lookup_table,
         output_dir=output_dir,
         base_name=base_name,
         scale_factor=scale_factor,
         metadata=metadata,
+        token_mask=token_mask,
     )
 
 

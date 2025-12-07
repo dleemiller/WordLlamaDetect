@@ -135,7 +135,7 @@ def _eval_pytorch_mode(args, logger) -> int:
         n_languages=model_config.n_languages,
         vocab_size=vocab_size,
         embeddings=embeddings_tensor,
-        dropout=config.training.projection.dropout,
+        dropout=config.training.projection_dropout,
         pooling=model_config.inference.pooling,
     )
 

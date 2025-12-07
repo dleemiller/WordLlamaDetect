@@ -1,7 +1,6 @@
 """Training loop for language detection model."""
 
 import logging
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -18,27 +17,6 @@ from wldetect.config.models import TrainingConfig
 from wldetect.data.flores import create_flores_dataset, get_flores_language_distribution
 from wldetect.training.losses import FocalLoss
 from wldetect.training.model import LanguageDetectionModel
-
-
-def log_memory(prefix: str = ""):
-    """Log current memory usage."""
-    logger = logging.getLogger("wldetect")
-    try:
-        import psutil
-
-        process = psutil.Process(os.getpid())
-        mem_info = process.memory_info()
-        rss_gb = mem_info.rss / 1024**3
-        logger.info(f"{prefix}Memory: RSS={rss_gb:.2f}GB")
-
-        if torch.cuda.is_available():
-            allocated_gb = torch.cuda.memory_allocated() / 1024**3
-            reserved_gb = torch.cuda.memory_reserved() / 1024**3
-            logger.info(
-                f"{prefix}GPU: Allocated={allocated_gb:.2f}GB, Reserved={reserved_gb:.2f}GB"
-            )
-    except ImportError:
-        pass  # psutil not available
 
 
 class LanguageDetectionDataset(Dataset):
@@ -198,20 +176,13 @@ class Trainer:
 
         # Loss function
         if config.training.loss == "cross_entropy":
-            self.criterion = nn.CrossEntropyLoss(
-                weight=class_weights,
-                label_smoothing=config.training.label_smoothing,
-            )
+            self.criterion = nn.CrossEntropyLoss(weight=class_weights)
         elif config.training.loss == "focal":
             # For focal loss, prefer focal_alpha if specified, otherwise use class_weights
             alpha = config.training.focal_alpha
             if alpha is None and class_weights is not None:
                 alpha = class_weights.cpu().numpy().tolist()
-            self.criterion = FocalLoss(
-                gamma=config.training.focal_gamma,
-                alpha=alpha,
-                label_smoothing=config.training.label_smoothing,
-            )
+            self.criterion = FocalLoss(gamma=config.training.focal_gamma, alpha=alpha)
         else:
             raise ValueError(f"Unsupported loss type: {config.training.loss}")
 
@@ -444,8 +415,6 @@ class Trainer:
         correct = 0
         total = 0
 
-        log_memory(f"[Epoch {self.current_epoch}] Start: ")
-
         progress_bar = tqdm(train_loader, desc=f"Epoch {self.current_epoch}")
         try:
             for batch_idx, batch in enumerate(progress_bar):
@@ -522,10 +491,6 @@ class Trainer:
 
                         gc.collect()
 
-                        # Log memory every 100 batches
-                        if batch_idx % 100 == 0:
-                            log_memory(f"[Epoch {self.current_epoch}, Batch {batch_idx}] ")
-
                 except Exception as e:
                     self.logger.error(f"\n✗ Error in batch {batch_idx}: {e}", exc_info=True)
                     import traceback
@@ -546,8 +511,6 @@ class Trainer:
         import gc
 
         gc.collect()
-
-        log_memory(f"[Epoch {self.current_epoch}] End: ")
 
         return {
             "loss": total_loss / len(train_loader),
@@ -626,9 +589,8 @@ class Trainer:
             "gradient_clip": self.config.training.gradient_clip,
             "scheduler": self.config.training.scheduler or "none",
             "warmup_steps": self.config.training.warmup_steps,
-            "dropout": self.config.training.projection.dropout,
+            "dropout": self.config.training.projection_dropout,
             "num_workers": self.config.training.num_workers,
-            "label_smoothing": self.config.training.label_smoothing,
         }
         self.writer.add_hparams(hparams, {})
 

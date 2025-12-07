@@ -36,19 +36,10 @@ class WLDetect:
         config_path = model_dir / "model_config.yaml"
         self.config = load_model_config(config_path)
 
-        # Load fp8 lookup table (prefer E3M4, fallback to E4M3FN)
-        e3m4_path = model_dir / "lookup_table_fp8_e3m4.safetensors"
-        e4m3fn_path = model_dir / "lookup_table_fp8_e4m3fn.safetensors"
-
-        if e3m4_path.exists():
-            lookup_table_path = e3m4_path
-        elif e4m3fn_path.exists():
-            lookup_table_path = e4m3fn_path
-        else:
-            raise FileNotFoundError(
-                f"No FP8 lookup table found in {model_dir}. "
-                f"Expected either {e3m4_path.name} or {e4m3fn_path.name}"
-            )
+        # Load fp8 lookup table
+        lookup_table_path = model_dir / "lookup_table_fp8_e3m4.safetensors"
+        if not lookup_table_path.exists():
+            raise FileNotFoundError(f"FP8 lookup table not found: {lookup_table_path}")
 
         self.lookup_table = self._load_fp8_lookup_table(lookup_table_path)
 
@@ -80,9 +71,7 @@ class WLDetect:
         return cls(path)
 
     def _load_fp8_lookup_table(self, path: Path) -> np.ndarray:
-        """Load fp8 lookup table from safetensors.
-
-        Supports both FP8 E3M4 (dtype_id=26) and E4M3FN (dtype_id=0) formats.
+        """Load fp8 E3M4 lookup table from safetensors.
 
         Args:
             path: Path to fp8 lookup table file
@@ -102,17 +91,12 @@ class WLDetect:
         # Reconstruct fp8 array
         lookup_table = lookup_uint8.reshape(shape)
 
-        # Determine format and dequantize
-        if dtype_id[0] == 26:
-            # FP8 E3M4: 3-bit exponent, 4-bit mantissa (better precision, smaller range)
-            lookup_fp8 = lookup_table.view(ml_dtypes.float8_e3m4)
-        elif dtype_id[0] == 0:
-            # FP8 E4M3FN: 4-bit exponent, 3-bit mantissa (larger range, less precision)
-            lookup_fp8 = lookup_table.view(ml_dtypes.float8_e4m3fn)
-        else:
-            raise ValueError(
-                f"Expected fp8_e4m3fn (0) or fp8_e3m4 (26); got dtype_id={dtype_id[0]}"
-            )
+        # Verify E3M4 format and dequantize
+        if dtype_id[0] != 26:
+            raise ValueError(f"Expected fp8_e3m4 (dtype_id=26); got dtype_id={dtype_id[0]}")
+
+        # FP8 E3M4: 3-bit exponent, 4-bit mantissa (better precision, smaller range)
+        lookup_fp8 = lookup_table.view(ml_dtypes.float8_e3m4)
 
         # Dequantize to fp32 and apply scale factor
         lookup_fp32 = lookup_fp8.astype(np.float32)

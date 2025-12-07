@@ -30,7 +30,6 @@ def run(args) -> int:
     from wldetect.training.flores_eval import evaluate_on_flores, save_flores_evaluation
     from wldetect.training.lookup_table import (
         save_lookup_table_e3m4_from_model,
-        save_lookup_table_from_model,
         save_projection_matrix,
     )
     from wldetect.training.model import LanguageDetectionModel
@@ -98,7 +97,7 @@ def run(args) -> int:
     logger.info("\nStep 5: Initialize model")
     vocab_size = embeddings.shape[0]
 
-    logger.info("  Converting embeddings to torch tensor...")
+    logger.info("  Converting embeddings to torch float32 tensor...")
     embeddings_tensor = torch.from_numpy(embeddings).float()
     logger.info(
         f"  Embeddings tensor: {embeddings_tensor.shape}, "
@@ -124,7 +123,7 @@ def run(args) -> int:
         n_languages=model_config.n_languages,
         vocab_size=vocab_size,
         embeddings=embeddings_tensor,
-        dropout=config.training.projection.dropout,
+        dropout=config.training.projection_dropout,
         pooling=model_config.inference.pooling,
         token_mask=token_mask,
     )
@@ -190,28 +189,15 @@ def run(args) -> int:
     projection_path = Path(config.output.artifacts_dir) / config.output.projection_matrix_name
     save_projection_matrix(model, str(projection_path))
 
-    # Generate and save fp8 lookup tables (both E4M3FN and E3M4)
-    logger.info("\nStep 8b: Generate fp8 lookup tables")
-
-    # Save E4M3FN (backward compatibility)
-    logger.info("  Saving E4M3FN format (backward compatibility)...")
-    lookup_table_e4m3fn_path = save_lookup_table_from_model(
+    # Generate and save fp8 lookup table
+    logger.info("\nStep 8b: Generate FP8 E3M4 lookup table")
+    lookup_table_path = save_lookup_table_e3m4_from_model(
         model=model,
         model_config=model_config,
         output_dir=config.output.artifacts_dir,
     )
-    size_e4m3fn_mb = lookup_table_e4m3fn_path.stat().st_size / (1024**2)
-    logger.info(f"  E4M3FN saved: {lookup_table_e4m3fn_path.name} ({size_e4m3fn_mb:.1f} MB)")
-
-    # Save E3M4 (new default with better precision)
-    logger.info("  Saving E3M4 format (30% better precision)...")
-    lookup_table_e3m4_path = save_lookup_table_e3m4_from_model(
-        model=model,
-        model_config=model_config,
-        output_dir=config.output.artifacts_dir,
-    )
-    size_e3m4_mb = lookup_table_e3m4_path.stat().st_size / (1024**2)
-    logger.info(f"  E3M4 saved: {lookup_table_e3m4_path.name} ({size_e3m4_mb:.1f} MB)")
+    size_mb = lookup_table_path.stat().st_size / (1024**2)
+    logger.info(f"  Saved: {lookup_table_path.name} ({size_mb:.1f} MB)")
 
     # Save model config
     config_path = Path(config.output.artifacts_dir) / config.output.config_name
@@ -223,8 +209,7 @@ def run(args) -> int:
     print_header(logger, "TRAINING COMPLETE")
     logger.info(f"Artifacts saved to: {config.output.artifacts_dir}")
     logger.info(f"  - Projection matrix: {projection_path}")
-    logger.info(f"  - Lookup table (E4M3FN): {lookup_table_e4m3fn_path.name}")
-    logger.info(f"  - Lookup table (E3M4): {lookup_table_e3m4_path.name}")
+    logger.info(f"  - Lookup table: {lookup_table_path.name}")
     logger.info(f"  - Model config: {config_path}")
     logger.info("=" * 60 + "\n")
 

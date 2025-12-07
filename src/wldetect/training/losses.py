@@ -13,7 +13,6 @@ class FocalLoss(nn.Module):
     Args:
         gamma: Focusing parameter that down-weights easy examples.
         alpha: Optional weighting factor (scalar or per-class sequence).
-        label_smoothing: Optional label smoothing factor in [0,1).
         reduction: Reduction mode, one of "none", "mean", or "sum".
     """
 
@@ -21,12 +20,10 @@ class FocalLoss(nn.Module):
         self,
         gamma: float = 2.0,
         alpha: float | Sequence[float] | torch.Tensor | None = None,
-        label_smoothing: float = 0.0,
         reduction: str = "mean",
     ):
         super().__init__()
         self.gamma = gamma
-        self.label_smoothing = label_smoothing
         self.reduction = reduction
 
         if alpha is None:
@@ -48,17 +45,12 @@ class FocalLoss(nn.Module):
         Returns:
             Loss value (scalar unless reduction="none").
         """
-        num_classes = logits.size(1)
         log_probs = F.log_softmax(logits, dim=1)
         probs = log_probs.exp()
 
-        if self.label_smoothing > 0 and num_classes > 1:
-            smooth = self.label_smoothing / (num_classes - 1)
-            true_dist = torch.full_like(log_probs, smooth)
-            true_dist.scatter_(1, targets.unsqueeze(1), 1.0 - self.label_smoothing)
-        else:
-            true_dist = torch.zeros_like(log_probs)
-            true_dist.scatter_(1, targets.unsqueeze(1), 1.0)
+        # Create one-hot target distribution
+        true_dist = torch.zeros_like(log_probs)
+        true_dist.scatter_(1, targets.unsqueeze(1), 1.0)
 
         pt = (probs * true_dist).sum(dim=1)
         focal_term = (1 - pt) ** self.gamma
