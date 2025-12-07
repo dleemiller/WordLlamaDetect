@@ -132,11 +132,11 @@ def test_inference_config():
     """Test inference configuration."""
     config = InferenceConfig(
         max_sequence_length=256,
-        pooling="average",
+        pooling="logsumexp",
     )
 
     assert config.max_sequence_length == 256
-    assert config.pooling == "average"
+    assert config.pooling == "logsumexp"
 
 
 def test_inference_config_invalid_pooling():

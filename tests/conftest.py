@@ -28,7 +28,7 @@ def minimal_model_config_dict():
         },
         "inference": {
             "max_sequence_length": 64,
-            "pooling": "max",
+            "pooling": "logsumexp",
         },
     }
 
@@ -92,16 +92,16 @@ def minimal_fp8_lookup_table(tmp_path):
     np.random.seed(42)
     lookup_fp32 = np.random.randn(vocab_size, n_langs).astype(np.float32)
 
-    # Quantize to fp8_e4m3fn
-    lookup_fp8 = lookup_fp32.astype(ml_dtypes.float8_e4m3fn)
+    # Quantize to fp8_e3m4
+    lookup_fp8 = lookup_fp32.astype(ml_dtypes.float8_e3m4)
     lookup_uint8 = lookup_fp8.view(np.uint8)
 
     # Save with metadata
-    path = tmp_path / "lookup_table_fp8_e4m3fn.safetensors"
+    path = tmp_path / "lookup_table_fp8_e3m4.safetensors"
     save_file(
         {
             "lookup_table": lookup_uint8,
-            "dtype": np.array([0], dtype=np.uint8),  # 0 = fp8_e4m3fn
+            "dtype": np.array([26], dtype=np.uint8),  # 26 = fp8_e3m4
             "shape": np.array([vocab_size, n_langs], dtype=np.int64),
         },
         str(path),
@@ -127,16 +127,16 @@ def realistic_fp8_lookup_table(tmp_path):
         preferred_lang = i % n_langs
         base_logits[i, preferred_lang] += 3.0
 
-    # Quantize to fp8_e4m3fn
-    lookup_fp8 = base_logits.astype(ml_dtypes.float8_e4m3fn)
+    # Quantize to fp8_e3m4
+    lookup_fp8 = base_logits.astype(ml_dtypes.float8_e3m4)
     lookup_uint8 = lookup_fp8.view(np.uint8)
 
     # Save with metadata
-    path = tmp_path / "lookup_table_fp8_e4m3fn.safetensors"
+    path = tmp_path / "lookup_table_fp8_e3m4.safetensors"
     save_file(
         {
             "lookup_table": lookup_uint8,
-            "dtype": np.array([0], dtype=np.uint8),
+            "dtype": np.array([26], dtype=np.uint8),
             "shape": np.array([vocab_size, n_langs], dtype=np.int64),
         },
         str(path),
@@ -218,7 +218,7 @@ def minimal_model_dir(tmp_path, minimal_model_config_dict, minimal_fp8_lookup_ta
         yaml.safe_dump(minimal_model_config_dict, f)
 
     # Copy lookup table
-    shutil.copy(minimal_fp8_lookup_table, model_dir / "lookup_table_fp8_e4m3fn.safetensors")
+    shutil.copy(minimal_fp8_lookup_table, model_dir / "lookup_table_fp8_e3m4.safetensors")
 
     return model_dir
 
@@ -235,7 +235,7 @@ def realistic_model_dir(tmp_path, realistic_model_config_dict, realistic_fp8_loo
         yaml.safe_dump(realistic_model_config_dict, f)
 
     # Copy lookup table
-    shutil.copy(realistic_fp8_lookup_table, model_dir / "lookup_table_fp8_e4m3fn.safetensors")
+    shutil.copy(realistic_fp8_lookup_table, model_dir / "lookup_table_fp8_e3m4.safetensors")
 
     return model_dir
 

@@ -20,7 +20,7 @@ class TestWLDetectInit:
         assert wld.lookup_table.shape == (100, 3)
         assert wld.lookup_table.dtype == np.float32
         assert wld.max_length == 64
-        assert wld.pooling == "max"
+        assert wld.pooling == "logsumexp"
         assert len(wld.index_to_language) == 3
         assert wld.index_to_language[0] == "eng_Latn"
 
@@ -86,8 +86,8 @@ class TestWLDetectLoad:
 
         shutil.copy(minimal_model_dir / "model_config.yaml", models_dir / "model_config.yaml")
         shutil.copy(
-            minimal_model_dir / "lookup_table_fp8_e4m3fn.safetensors",
-            models_dir / "lookup_table_fp8_e4m3fn.safetensors",
+            minimal_model_dir / "lookup_table_fp8_e3m4.safetensors",
+            models_dir / "lookup_table_fp8_e3m4.safetensors",
         )
 
         wld = WLDetect.load()
@@ -123,7 +123,7 @@ class TestWLDetectFP8Loading:
                 "dtype": np.array([99], dtype=np.uint8),  # Invalid dtype
                 "shape": np.array([100, 3], dtype=np.int64),
             },
-            str(tmp_path / "lookup_table_fp8_e4m3fn.safetensors"),
+            str(tmp_path / "lookup_table_fp8_e3m4.safetensors"),
         )
 
         # Create model config
@@ -132,7 +132,7 @@ class TestWLDetectFP8Loading:
             yaml.safe_dump(minimal_model_config_dict, f)
 
         # Should raise ValueError for invalid dtype
-        with pytest.raises(ValueError, match="Expected fp8_e4m3fn"):
+        with pytest.raises(ValueError, match="Expected fp8_e3m4"):
             WLDetect(tmp_path)
 
     def test_fp8_shape_metadata(self, minimal_model_dir, mock_tokenizer_from_pretrained):
@@ -217,7 +217,7 @@ class TestWLDetectPredict:
 class TestWLDetectPooling:
     """Test different pooling methods."""
 
-    @pytest.mark.parametrize("pooling_method", ["max", "logsumexp", "average"])
+    @pytest.mark.parametrize("pooling_method", ["logsumexp"])
     def test_different_pooling_methods(
         self,
         pooling_method,
@@ -242,7 +242,7 @@ class TestWLDetectPooling:
         # Copy lookup table
         import shutil
 
-        shutil.copy(minimal_fp8_lookup_table, model_dir / "lookup_table_fp8_e4m3fn.safetensors")
+        shutil.copy(minimal_fp8_lookup_table, model_dir / "lookup_table_fp8_e3m4.safetensors")
 
         # Load and predict
         wld = WLDetect.load(model_dir)
@@ -250,41 +250,6 @@ class TestWLDetectPooling:
 
         assert isinstance(lang, str)
         assert 0 <= conf <= 1
-
-    def test_max_pooling_vs_logsumexp(
-        self,
-        tmp_path,
-        minimal_model_config_dict,
-        minimal_fp8_lookup_table,
-        mock_tokenizer_from_pretrained,
-    ):
-        """Test that max and logsumexp pooling give different results."""
-        import shutil
-
-        # Create two model dirs with different pooling
-        results = {}
-
-        for pooling in ["max", "logsumexp"]:
-            config_dict = minimal_model_config_dict.copy()
-            config_dict["inference"]["pooling"] = pooling
-
-            model_dir = tmp_path / f"model_{pooling}"
-            model_dir.mkdir()
-
-            config_path = model_dir / "model_config.yaml"
-            with open(config_path, "w") as f:
-                yaml.safe_dump(config_dict, f)
-
-            shutil.copy(minimal_fp8_lookup_table, model_dir / "lookup_table_fp8_e4m3fn.safetensors")
-
-            wld = WLDetect.load(model_dir)
-            results[pooling] = wld.predict("Hello world")
-
-        # Results might differ (not guaranteed, but likely with random data)
-        # At minimum, both should be valid
-        for lang, conf in results.values():
-            assert isinstance(lang, str)
-            assert 0 <= conf <= 1
 
 
 class TestWLDetectBatchVsSingle:
