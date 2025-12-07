@@ -14,7 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from wldetect.config.models import TrainingConfig
-from wldetect.training.flores_eval import create_flores_eval_loader
+from wldetect.training.flores_eval import compute_flores_metrics, create_flores_eval_loader
 from wldetect.training.losses import FocalLoss
 from wldetect.training.model import LanguageDetectionModel
 
@@ -170,47 +170,32 @@ class Trainer:
                 labels.append(batch_labels.cpu().numpy())
 
         import numpy as np
-        from sklearn.metrics import accuracy_score, f1_score
 
         preds_np = np.concatenate(predictions)
         labels_np = np.concatenate(labels)
 
-        accuracy = accuracy_score(labels_np, preds_np)
-        f1_macro = f1_score(labels_np, preds_np, average="macro", zero_division=0)
-        f1_weighted = f1_score(labels_np, preds_np, average="weighted", zero_division=0)
+        metrics = compute_flores_metrics(labels_np, preds_np, self.model_config)
+        overall = metrics["overall"]
 
         step_tag = self.global_step
-        self.writer.add_scalar("flores/accuracy_step", accuracy, step_tag)
-        self.writer.add_scalar("flores/f1_macro_step", f1_macro, step_tag)
-        self.writer.add_scalar("flores/f1_weighted_step", f1_weighted, step_tag)
+        self.writer.add_scalar("flores/accuracy_step", overall["accuracy"], step_tag)
+        self.writer.add_scalar("flores/f1_macro_step", overall["f1_macro"], step_tag)
+        self.writer.add_scalar("flores/f1_weighted_step", overall["f1_weighted"], step_tag)
 
         # Per-language summary for quick inspection
-        language_codes = sorted(
-            self.model_config.languages.keys(), key=self.model_config.languages.get
-        )
-        per_lang = []
-        for idx, lang in enumerate(language_codes):
-            mask = labels_np == idx
-            if mask.sum() == 0:
-                continue
-            lang_acc = accuracy_score(labels_np[mask], preds_np[mask])
-            lang_f1 = f1_score(
-                labels_np[mask],
-                preds_np[mask],
-                labels=[idx],
-                average="macro",
-                zero_division=0,
+        per_lang_metrics = metrics.get("per_language", {})
+        if per_lang_metrics:
+            per_lang_sorted = sorted(
+                per_lang_metrics.items(), key=lambda x: x[1]["accuracy"], reverse=True
             )
-            per_lang.append((lang, lang_acc, lang_f1, int(mask.sum())))
-
-        if per_lang:
-            per_lang_sorted = sorted(per_lang, key=lambda x: x[1], reverse=True)
             top = per_lang_sorted[:10]
             bottom = per_lang_sorted[-10:]
 
             def _fmt(rows):
                 return "\n".join(
-                    f"{lang}: acc={acc:.4f}, f1={f1:.4f}, n={n}" for lang, acc, f1, n in rows
+                    f"{lang}: acc={info['accuracy']:.4f}, "
+                    f"f1={info['f1']:.4f}, n={info['n_samples']}"
+                    for lang, info in rows
                 )
 
             summary_text = (
@@ -224,7 +209,8 @@ class Trainer:
 
         self.logger.info(
             f"[FLORES eval @ step {step_tag}] "
-            f"accuracy={accuracy:.4f}, f1_macro={f1_macro:.4f}, f1_weighted={f1_weighted:.4f}"
+            f"accuracy={overall['accuracy']:.4f}, "
+            f"f1_macro={overall['f1_macro']:.4f}, f1_weighted={overall['f1_weighted']:.4f}"
         )
 
         if was_training:

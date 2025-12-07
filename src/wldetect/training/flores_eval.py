@@ -177,6 +177,11 @@ def _print_metrics(metrics: dict) -> None:
         console.print(bottom_table)
 
 
+def compute_flores_metrics(labels: np.ndarray, predictions: np.ndarray, model_config) -> dict:
+    """Public wrapper to compute FLORES metrics."""
+    return _compute_metrics(labels, predictions, model_config)
+
+
 def create_flores_eval_loader(
     model_config,
     tokenizer,
