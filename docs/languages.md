@@ -4,15 +4,21 @@ WLDetect supports **148 languages** trained on OpenLID-v2 and evaluated on FLORE
 
 ## Performance Summary
 
+### Dev Set (150,547 samples)
 - **Average Accuracy**: 92.92%
 - **Macro F1 Score**: 0.9274
-- **Weighted F1 Score**: 0.9274
+- **Weighted F1 Score**: 0.9275
 - **Languages ≥ 95% accuracy**: 103/148
 - **Languages ≥ 90% accuracy**: 113/148
 
+### Devtest Set (153,824 samples)
+- **Average Accuracy**: 92.86%
+- **Macro F1 Score**: 0.9271
+- **Weighted F1 Score**: 0.9269
+
 ## Language List
 
-Languages sorted by FLORES accuracy (highest to lowest).
+Languages sorted by FLORES dev accuracy (highest to lowest).
 
 | Language Code | FLORES Accuracy | FLORES F1 |
 |--------------|-----------------|----------|

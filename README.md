@@ -118,24 +118,27 @@ Sparsification is applied after exp() pre-computation, removing small exp values
 
 ### FLORES+ Benchmark Results
 
-Evaluated on FLORES+ dev set (148 languages, 1,012 sentences per language):
+Evaluated on FLORES+ dataset (148 languages, ~1,012 sentences per language):
 
-| Metric         | Score  |
-|----------------|--------|
-| Accuracy       | 92.92% |
-| F1 (macro)     | 92.74% |
-| F1 (weighted)  | 92.75% |
+| Split   | Accuracy | F1 (macro) | F1 (weighted) | Samples  |
+|---------|----------|------------|---------------|----------|
+| dev     | 92.92%   | 92.74%     | 92.75%        | 150,547  |
+| devtest | 92.86%   | 92.71%     | 92.69%        | 153,824  |
 
-**Top performing languages**: 31 languages achieve 100% accuracy including `asm_Beng`, `ben_Beng`, `cmn_Hant`, `dzo_Tibt`, `ell_Grek`, `jpn_Jpan`, `kor_Hang`, and more.
+**Top performing languages**: 31 languages achieve 100% accuracy on dev set, including `asm_Beng`, `ben_Beng`, `cmn_Hant`, `dzo_Tibt`, `ell_Grek`, `jpn_Jpan`, `kor_Hang`, and more.
 
-**Challenging languages**: `arz_Arab` (27.9%), `bho_Deva` (35.7%), `knc_Arab` (45.8%) - primarily confusion with closely related language variants.
+**Challenging languages**: Languages with close dialectal relationships show lower accuracy: `arz_Arab` (27%), `bho_Deva` (36%), `knc_Arab` (46%), `zsm_Latn` (48%) - primarily confusion with closely related variants.
 
 For detailed per-language performance, see [docs/languages.md](docs/languages.md).
 
 ### Inference Speed
 
-- **Single-threaded**: ~30,000 texts/second
-- **Batch processing**: Uses fast tokenization for optimal throughput
+Benchmarked on sparse exp lookup table (13MB, single-threaded):
+
+- **Single text**: 71,500 texts/second (0.014 ms/text)
+- **Batch (1000)**: 82,500 texts/second (12.1 ms/batch)
+
+The sparse format maintains high inference speed while reducing model size by 91%.
 
 ## Supported Languages
 
