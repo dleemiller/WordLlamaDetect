@@ -4,8 +4,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-import torch
-from safetensors.torch import save_file
+
+torch = pytest.importorskip("torch")
+save_file = pytest.importorskip("safetensors.torch").save_file
 
 from wldetect.config.models import ModelConfig, SingleModelConfig
 from wldetect.embeddings.manager import EmbeddingsManager

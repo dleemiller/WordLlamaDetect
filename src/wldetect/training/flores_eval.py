@@ -238,7 +238,7 @@ def evaluate_on_flores_inference(
     hf_dataset: str | None = None,
     cache_dir: str | None = None,
 ) -> dict:
-    """Evaluate fp8 inference model on FLORES-200 dataset from HuggingFace."""
+    """Evaluate exp inference model on FLORES-200 dataset from HuggingFace."""
     flores_dataset, skipped_languages, _ = _prepare_flores_dataset(
         model_config=model_config,
         split=split,

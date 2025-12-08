@@ -1,7 +1,7 @@
 [project]
 name = "wldetect"
 dynamic = ["version"]
-description = "Fast, accurate language detection using static LLM embeddings with FP8 quantization"
+description = "Fast, accurate language detection using static LLM embeddings"
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
@@ -13,8 +13,6 @@ keywords = [
     "language-detection",
     "machine-learning",
     "embeddings",
-    "quantization",
-    "fp8",
     "gemma",
     "llm",
 ]
@@ -35,10 +33,7 @@ dependencies = [
     "safetensors>=0.4.5",
     "pyyaml>=6.0.2",
     "pydantic>=2.12.4",
-    "tokenizers>=0.22.0", # HuggingFace tokenizers (Rust, no PyTorch)
-    "psutil>=7.0.0",
-    "ml-dtypes>=0.5.0", # For fp8 quantization support
-    "numba>=0.62.1",
+    "tokenizers>=0.22.0",  # HuggingFace tokenizers (Rust, no PyTorch)
 ]
 
 [project.urls]

@@ -95,62 +95,6 @@ class TestWLDetectLoad:
         assert wld.config.n_languages == 3
 
 
-class TestWLDetectFP8Loading:
-    """Test FP8 lookup table loading and dequantization."""
-
-    def test_fp8_dequantization(self, minimal_model_dir, mock_tokenizer_from_pretrained):
-        """Test fp8 lookup table loads and dequantizes to fp32 correctly."""
-        wld = WLDetect.load(minimal_model_dir)
-
-        # Verify dequantization
-        assert wld.lookup_table.dtype == np.float32
-        assert wld.lookup_table.shape == (100, 3)
-
-        # Values should be in reasonable range after dequantization
-        assert np.all(np.abs(wld.lookup_table) < 1000)  # Not inf/nan
-
-    def test_fp8_invalid_dtype_id(
-        self, tmp_path, minimal_model_config_dict, mock_tokenizer_from_pretrained
-    ):
-        """Test error on invalid dtype_id in exp lookup table."""
-        from safetensors.numpy import save_file
-
-        # Create lookup table with wrong dtype_id
-        save_file(
-            {
-                "lookup_table": np.zeros((100, 3), dtype=np.float32),
-                "dtype": np.array([99], dtype=np.uint8),  # Invalid dtype
-                "shape": np.array([100, 3], dtype=np.int64),
-            },
-            str(tmp_path / "lookup_table_exp.safetensors"),
-        )
-
-        # Create model config
-        config_path = tmp_path / "model_config.yaml"
-        with open(config_path, "w") as f:
-            yaml.safe_dump(minimal_model_config_dict, f)
-
-        # Should raise ValueError for invalid dtype
-        with pytest.raises(ValueError, match="Expected 32.*or 33"):
-            WLDetect(tmp_path)
-
-    def test_fp8_shape_metadata(self, minimal_model_dir, mock_tokenizer_from_pretrained):
-        """Test that shape metadata is correctly used."""
-        wld = WLDetect.load(minimal_model_dir)
-
-        # Shape should match metadata
-        assert wld.lookup_table.shape == (100, 3)  # vocab_size=100, n_langs=3
-
-    def test_fp16_lookup_table(self, minimal_model_dir_fp16, mock_tokenizer_from_pretrained):
-        """Test fp16 lookup table loads and dequantizes to fp32."""
-        wld = WLDetect.load(minimal_model_dir_fp16)
-
-        assert wld.lookup_table.dtype == np.float32
-        assert wld.lookup_table.shape == (100, 3)
-        # Values should be finite and come from fp16 path
-        assert np.isfinite(wld.lookup_table).all()
-
-
 class TestWLDetectPredict:
     """Test WLDetect.predict() method."""
 

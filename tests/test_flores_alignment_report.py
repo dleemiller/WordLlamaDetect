@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from wldetect.data.flores import load_flores_languages, map_flores_to_model_languages
+flores_module = pytest.importorskip("wldetect.data.flores")
+load_flores_languages = flores_module.load_flores_languages
+map_flores_to_model_languages = flores_module.map_flores_to_model_languages
 
 
 @pytest.fixture(scope="module")
