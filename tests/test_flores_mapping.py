@@ -15,9 +15,9 @@ map_flores_to_model_languages = flores_module.map_flores_to_model_languages
 @pytest.fixture(scope="module")
 def model_languages() -> dict[str, int]:
     """Load model languages from ds_langs.json (training set labels)."""
-    langs_path = Path("ds_langs.json")
+    langs_path = Path("assets/ds_langs.json")
     if not langs_path.exists():
-        pytest.skip("ds_langs.json not found; mapping test skipped")
+        pytest.skip("assets/ds_langs.json not found; mapping test skipped")
     langs = json.loads(langs_path.read_text())
     return {lang: idx for idx, lang in enumerate(langs)}
 
