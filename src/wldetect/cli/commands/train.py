@@ -29,7 +29,7 @@ def run(args) -> int:
     from wldetect.embeddings import EmbeddingsManager
     from wldetect.training.flores_eval import evaluate_on_flores, save_flores_evaluation
     from wldetect.training.lookup_table import (
-        save_lookup_table_e3m4_from_model,
+        save_lookup_table_exp_from_model,
         save_projection_matrix,
     )
     from wldetect.training.model import LanguageDetectionModel
@@ -189,9 +189,9 @@ def run(args) -> int:
     projection_path = Path(config.output.artifacts_dir) / config.output.projection_matrix_name
     save_projection_matrix(model, str(projection_path))
 
-    # Generate and save fp8 lookup table
-    logger.info("\nStep 8b: Generate FP8 E3M4 lookup table")
-    lookup_table_path = save_lookup_table_e3m4_from_model(
+    # Generate and save exp lookup table
+    logger.info("\nStep 8b: Generate exp lookup table")
+    lookup_table_path = save_lookup_table_exp_from_model(
         model=model,
         model_config=model_config,
         output_dir=config.output.artifacts_dir,
