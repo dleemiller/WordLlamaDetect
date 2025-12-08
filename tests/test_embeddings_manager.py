@@ -9,7 +9,7 @@ torch = pytest.importorskip("torch")
 save_file = pytest.importorskip("safetensors.torch").save_file
 
 from wldetect.config.models import ModelConfig, SingleModelConfig
-from wldetect.embeddings.manager import EmbeddingsManager
+from wldetect.training.embeddings import EmbeddingsManager
 
 
 class TestEmbeddingsManagerInit:
@@ -95,9 +95,9 @@ class TestEmbeddingsManagerSingleModel:
 
         # Mock HuggingFace functions
         mocker.patch(
-            "wldetect.embeddings.manager.list_repo_files", return_value=["model.safetensors"]
+            "wldetect.training.embeddings.list_repo_files", return_value=["model.safetensors"]
         )
-        mocker.patch("wldetect.embeddings.manager.hf_hub_download", return_value=str(shard_path))
+        mocker.patch("wldetect.training.embeddings.hf_hub_download", return_value=str(shard_path))
 
         model_config = SingleModelConfig(
             name="test/model",
@@ -125,9 +125,9 @@ class TestEmbeddingsManagerSingleModel:
         save_file({"embeddings.weight": embeddings}, str(shard_path))
 
         mocker.patch(
-            "wldetect.embeddings.manager.list_repo_files", return_value=["model.safetensors"]
+            "wldetect.training.embeddings.list_repo_files", return_value=["model.safetensors"]
         )
-        mocker.patch("wldetect.embeddings.manager.hf_hub_download", return_value=str(shard_path))
+        mocker.patch("wldetect.training.embeddings.hf_hub_download", return_value=str(shard_path))
 
         model_config = SingleModelConfig(
             name="test/model",
@@ -156,9 +156,9 @@ class TestEmbeddingsManagerExtract:
         save_file({"embeddings.weight": embeddings}, str(shard_path))
 
         mocker.patch(
-            "wldetect.embeddings.manager.list_repo_files", return_value=["model.safetensors"]
+            "wldetect.training.embeddings.list_repo_files", return_value=["model.safetensors"]
         )
-        mocker.patch("wldetect.embeddings.manager.hf_hub_download", return_value=str(shard_path))
+        mocker.patch("wldetect.training.embeddings.hf_hub_download", return_value=str(shard_path))
 
         model_config = SingleModelConfig(
             name="test/model",
@@ -207,7 +207,7 @@ class TestEmbeddingsManagerExtract:
         manager._save_to_cache(cached_embeddings, cache_path)
 
         # Mock to ensure download is NOT called
-        mock_download = mocker.patch("wldetect.embeddings.manager.hf_hub_download")
+        mock_download = mocker.patch("wldetect.training.embeddings.hf_hub_download")
 
         # Extract (should use cache)
         result = manager.extract_embeddings(use_cache=True)
@@ -226,10 +226,10 @@ class TestEmbeddingsManagerExtract:
         save_file({"embeddings.weight": embeddings}, str(shard_path))
 
         mocker.patch(
-            "wldetect.embeddings.manager.list_repo_files", return_value=["model.safetensors"]
+            "wldetect.training.embeddings.list_repo_files", return_value=["model.safetensors"]
         )
         mock_download = mocker.patch(
-            "wldetect.embeddings.manager.hf_hub_download", return_value=str(shard_path)
+            "wldetect.training.embeddings.hf_hub_download", return_value=str(shard_path)
         )
 
         model_config = SingleModelConfig(
@@ -407,8 +407,8 @@ class TestEmbeddingsManagerMultiModel:
             else:
                 return ["model2.safetensors"]
 
-        mocker.patch("wldetect.embeddings.manager.list_repo_files", side_effect=mock_list_files)
-        mocker.patch("wldetect.embeddings.manager.hf_hub_download", side_effect=mock_download)
+        mocker.patch("wldetect.training.embeddings.list_repo_files", side_effect=mock_list_files)
+        mocker.patch("wldetect.training.embeddings.hf_hub_download", side_effect=mock_download)
 
         model1 = SingleModelConfig(
             name="test/model1",
@@ -448,9 +448,9 @@ class TestEmbeddingsManagerIntegration:
         save_file({"embeddings.weight": embeddings}, str(shard_path))
 
         mocker.patch(
-            "wldetect.embeddings.manager.list_repo_files", return_value=["model.safetensors"]
+            "wldetect.training.embeddings.list_repo_files", return_value=["model.safetensors"]
         )
-        mocker.patch("wldetect.embeddings.manager.hf_hub_download", return_value=str(shard_path))
+        mocker.patch("wldetect.training.embeddings.hf_hub_download", return_value=str(shard_path))
 
         model_config = SingleModelConfig(
             name="test/model",

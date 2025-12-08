@@ -20,7 +20,7 @@ def test_config_imports():
 
 def test_embeddings_imports():
     """Test embeddings module imports."""
-    from wldetect.embeddings import EmbeddingsManager
+    from wldetect.training.embeddings import EmbeddingsManager
 
     assert hasattr(EmbeddingsManager, "extract_embeddings")
     assert hasattr(EmbeddingsManager, "load_cached_embeddings")

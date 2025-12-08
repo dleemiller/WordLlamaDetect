@@ -61,7 +61,7 @@ def main() -> None:
     max_length = model_config.inference.max_sequence_length
 
     # Get vocab size from embeddings (matches actual model vocab)
-    from wldetect.embeddings import EmbeddingsManager
+    from wldetect.training.embeddings import EmbeddingsManager
 
     embeddings_manager = EmbeddingsManager(model_config, cache_dir="artifacts/embeddings")
     embeddings = embeddings_manager.load_cached_embeddings()

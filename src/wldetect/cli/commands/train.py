@@ -26,7 +26,7 @@ def run(args) -> int:
 
     from wldetect.config.loader import load_model_config, load_training_config, save_model_config
     from wldetect.data.dataset import prepare_dataset
-    from wldetect.embeddings import EmbeddingsManager
+    from wldetect.training.embeddings import EmbeddingsManager
     from wldetect.training.flores_eval import evaluate_on_flores, save_flores_evaluation
     from wldetect.training.lookup_table import (
         save_lookup_table_exp_from_model,

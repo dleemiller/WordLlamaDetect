@@ -158,33 +158,12 @@ The model config validator checks this at load time and will raise an error if t
 
 After training, the following artifacts are saved to `artifacts/`:
 
-- **`projection.safetensors`**: Projection weights and token weights
-- **`lookup_table_fp8_e4m3fn.safetensors`**: E4M3FN lookup table (backward compatibility)
-- **`lookup_table_fp8_e3m4.safetensors`**: E3M4 lookup table (new default, 30% better precision)
+- **`lookup_table_exp.safetensors`**: Pre-exponentiated lookup table for inference
 - **`model_config.yaml`**: Model configuration
 - **`flores_dev_results.json`**: FLORES evaluation results
-- **`checkpoints/`**: Training checkpoints
+- **`checkpoints/`**: Training checkpoints (if enabled)
 
 ## Advanced Topics
-
-### Token Filtering
-
-Zero-weight tokens with insufficient training representation:
-
-1. Generate token counts:
-```bash
-uv run python scripts/analysis/token_frequency_counter.py
-```
-
-2. Analyze weight distribution:
-```bash
-uv run python scripts/analysis/weight_analysis.py
-```
-
-3. Create filtered E3M4 model:
-```bash
-uv run python scripts/analysis/create_filtered_e3m4_model.py --threshold 10
-```
 
 ### Custom Datasets
 

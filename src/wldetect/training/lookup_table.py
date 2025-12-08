@@ -229,7 +229,7 @@ def compute_lookup_table_from_model(
     Returns:
         tuple: (lookup_table, token_mask) where token_mask is None if no masking
     """
-    from wldetect.embeddings import EmbeddingsManager
+    from wldetect.training.embeddings import EmbeddingsManager
 
     embeddings_manager = EmbeddingsManager(model_config, cache_dir=cache_dir)
     embeddings = embeddings_manager.load_cached_embeddings()
