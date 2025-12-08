@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from wldetect.cli.commands import create_lookup, curate, detect, eval, train
+from wldetect.cli.commands import create_lookup, detect, eval, train
 
 
 def main() -> int:
@@ -28,7 +28,7 @@ def main() -> int:
     # Eval command
     eval_parser = subparsers.add_parser(
         "eval",
-        help="Evaluate a model on FLORES (PyTorch checkpoint or fp8 inference model)",
+        help="Evaluate a model on FLORES (PyTorch checkpoint or exp inference model)",
     )
     mode_group = eval_parser.add_mutually_exclusive_group(required=True)
     mode_group.add_argument(
@@ -39,7 +39,7 @@ def main() -> int:
     mode_group.add_argument(
         "--model-path",
         type=str,
-        help="Path to model directory with fp8 lookup table (inference mode)",
+        help="Path to model directory with exp lookup table (inference mode)",
     )
     eval_parser.add_argument(
         "--checkpoint",
@@ -62,7 +62,7 @@ def main() -> int:
         "--batch-size",
         type=int,
         default=None,
-        help="Override evaluation batch size (default: 512 for fp8, training config for PyTorch)",
+        help="Override evaluation batch size (default: 512 for exp, training config for PyTorch)",
     )
     eval_parser.add_argument(
         "--device",
@@ -87,8 +87,8 @@ def main() -> int:
     detect_parser.add_argument(
         "--model-path",
         type=str,
-        required=True,
-        help="Path to model directory",
+        default=None,
+        help="Path to model directory (default: bundled model)",
     )
     group = detect_parser.add_mutually_exclusive_group()
     group.add_argument(
@@ -105,7 +105,7 @@ def main() -> int:
     # Create-lookup command
     create_lookup_parser = subparsers.add_parser(
         "create-lookup",
-        help="Generate lookup table from a checkpoint",
+        help="Generate exp lookup table from a checkpoint",
     )
     create_lookup_parser.add_argument(
         "--checkpoint",
@@ -123,73 +123,18 @@ def main() -> int:
         "--output-dir",
         type=str,
         required=True,
-        help="Output directory for lookup table",
+        help="Output directory for exp lookup table",
     )
-
-    # Curate command
-    curate_parser = subparsers.add_parser(
-        "curate",
-        help="Evaluate model, threshold languages, and write a pruned model config",
-    )
-    curate_parser.add_argument(
-        "--config",
-        type=str,
-        required=True,
-        help="Path to training configuration file",
-    )
-    curate_parser.add_argument(
-        "--checkpoint",
-        type=str,
-        help="Checkpoint path to load (default: best_model.pt in checkpoint_dir)",
-    )
-    curate_parser.add_argument(
-        "--accuracy-threshold",
+    create_lookup_parser.add_argument(
+        "--threshold",
         type=float,
-        default=0.3,
-        help="Minimum accuracy to keep a language (default: 0.3)",
+        default=10.0,
+        help="Sparsification threshold - values < threshold are set to 0 (default: 10.0)",
     )
-    curate_parser.add_argument(
-        "--f1-threshold",
-        type=float,
-        default=0.0,
-        help="Minimum F1 to keep a language (default: 0.0)",
-    )
-    curate_parser.add_argument(
-        "--min-samples",
-        type=int,
-        default=1,
-        help="Minimum evaluation samples to consider a language (default: 1)",
-    )
-    curate_parser.add_argument(
-        "--output-config",
-        type=str,
-        required=True,
-        help="Output path for pruned model configuration YAML",
-    )
-    curate_parser.add_argument(
-        "--output-metrics",
-        type=str,
-        help="Optional path to save evaluation metrics JSON",
-    )
-    curate_parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=None,
-        help="Override evaluation batch size (default: training batch size)",
-    )
-    curate_parser.add_argument(
-        "--device",
-        type=str,
-        default="auto",
-        choices=["auto", "cpu", "cuda"],
-        help="Device to run evaluation on (default: auto)",
-    )
-    curate_parser.add_argument(
-        "--embedding-dtype",
-        type=str,
-        default="float32",
-        choices=["float32", "float16", "bfloat16"],
-        help="Data type to load embeddings with (default: float32)",
+    create_lookup_parser.add_argument(
+        "--dense",
+        action="store_true",
+        help="Save in dense format instead of sparse (default: sparse)",
     )
 
     args = parser.parse_args()
@@ -204,7 +149,6 @@ def main() -> int:
         "eval": eval.run,
         "detect": detect.run,
         "create-lookup": create_lookup.run,
-        "curate": curate.run,
     }
 
     return command_map[args.command](args)

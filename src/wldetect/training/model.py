@@ -24,6 +24,7 @@ class LanguageDetectionModel(nn.Module):
         embeddings: torch.Tensor,
         dropout: float = 0.1,
         pooling: str = "max",
+        token_mask: torch.Tensor | None = None,
     ):
         """Initialize language detection model.
 
@@ -34,6 +35,8 @@ class LanguageDetectionModel(nn.Module):
             embeddings: Static embeddings (vocab_size, hidden_dim) - will be stored on GPU
             dropout: Dropout probability
             pooling: Pooling strategy ('max', 'average', 'logsumexp', 'geometric', 'harmonic')
+            token_mask: Optional boolean mask (vocab_size,) where False = zero weight.
+                        Applied during initialization to zero-weight under-represented tokens.
         """
         super().__init__()
         self.hidden_dim = hidden_dim
@@ -48,6 +51,16 @@ class LanguageDetectionModel(nn.Module):
         # Learnable per-token weights (initialized to 1.0)
         # Shape: (vocab_size, 1) so we can broadcast multiply with embeddings
         self.token_weights = nn.Parameter(torch.ones(vocab_size, 1))
+
+        # Apply token mask if provided (boolean, used during pooling)
+        self.register_buffer("token_mask", None)
+        if token_mask is not None:
+            if token_mask.shape[0] != vocab_size:
+                raise ValueError(
+                    f"Token mask shape {token_mask.shape} doesn't match vocab_size {vocab_size}"
+                )
+            mask_bool = token_mask.view(-1, 1).bool()
+            self.register_buffer("token_mask", mask_bool)
 
         self.dropout = nn.Dropout(dropout)
         self.projection = nn.Linear(hidden_dim, n_languages)
@@ -68,30 +81,23 @@ class LanguageDetectionModel(nn.Module):
 
         # Apply learnable per-token weights
         # token_weights[token_ids]: (batch, seq_len, 1)
-        weighted_embeddings = embeddings * self.token_weights[token_ids]
+        token_weights = self.token_weights
+        weighted_embeddings = embeddings * token_weights[token_ids]
 
         x = self.dropout(weighted_embeddings)
 
         # Project each token to language logits
         x = self.projection(x)  # (batch, seq_len, n_languages)
 
+        # Mask out disallowed tokens by setting logits to large negative before pooling
+        if self.token_mask is not None:
+            allowed = self.token_mask.squeeze(1)[token_ids]  # (batch, seq_len)
+            x = x.masked_fill(~allowed.unsqueeze(-1), -1e9)
+
         # Apply pooling over sequence dimension
-        if self.pooling == "max":
-            x, _ = torch.max(x, dim=1)  # (batch, n_languages)
-        elif self.pooling == "average":
-            x = torch.mean(x, dim=1)  # (batch, n_languages)
-        elif self.pooling == "logsumexp":
+        if self.pooling == "logsumexp":
             # LogSumExp: smooth differentiable approximation of max
             x = torch.logsumexp(x, dim=1)  # (batch, n_languages)
-        elif self.pooling == "geometric":
-            # Geometric mean: exp(mean(log(|x| + eps)))
-            # Add small epsilon to avoid log(0), use abs to handle negative logits
-            x = torch.exp(torch.mean(torch.log(torch.abs(x) + 1e-8), dim=1))
-        elif self.pooling == "harmonic":
-            # Harmonic mean: n / sum(1/x)
-            # Add small epsilon to avoid division by zero, use abs to handle negative logits
-            seq_len = x.size(1)
-            x = seq_len / torch.sum(1.0 / (torch.abs(x) + 1e-8), dim=1)
         else:
             raise ValueError(f"Unknown pooling strategy: {self.pooling}")
 
@@ -119,4 +125,6 @@ class LanguageDetectionModel(nn.Module):
         Returns:
             Token weights (vocab_size, 1)
         """
-        return self.token_weights.data
+        if self.token_mask is None:
+            return self.token_weights.data
+        return self.token_weights.data * self.token_mask

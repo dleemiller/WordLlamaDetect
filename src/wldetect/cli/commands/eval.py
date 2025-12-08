@@ -3,10 +3,11 @@
 from pathlib import Path
 
 from wldetect.cli.utils import ensure_training_deps, print_header, setup_logging
+from wldetect.tokenization import disable_chat_template
 
 
-def _eval_fp8_mode(args, logger) -> int:
-    """Evaluate FP8 inference model.
+def _eval_inference_mode(args, logger) -> int:
+    """Evaluate inference model (exp lookup table).
 
     Args:
         args: Command arguments
@@ -22,10 +23,10 @@ def _eval_fp8_mode(args, logger) -> int:
         save_flores_evaluation,
     )
 
-    print_header(logger, "WLDETECT FP8 EVALUATION")
+    print_header(logger, "WLDETECT INFERENCE EVALUATION")
 
     # Load model
-    logger.info("\nStep 1: Load fp8 inference model")
+    logger.info("\nStep 1: Load exp inference model")
     detector = WLDetect.load(args.model_path)
     logger.info(f"Model: {detector.config.model.name if detector.config.model else 'Multi-model'}")
     logger.info(f"Languages: {detector.config.n_languages}")
@@ -103,6 +104,7 @@ def _eval_pytorch_mode(args, logger) -> int:
     logger.info("\nStep 3: Load tokenizer")
     first_model = model_config.model if model_config.model else model_config.models[0]
     tokenizer = AutoTokenizer.from_pretrained(first_model.name)
+    disable_chat_template(tokenizer)
 
     # Determine device
     if args.device == "cuda":
@@ -128,16 +130,8 @@ def _eval_pytorch_mode(args, logger) -> int:
     embeddings_tensor = torch.from_numpy(embeddings).clone().to(device=device, dtype=target_dtype)
 
     vocab_size = embeddings.shape[0]
-    model = LanguageDetectionModel(
-        hidden_dim=model_config.hidden_dim,
-        n_languages=model_config.n_languages,
-        vocab_size=vocab_size,
-        embeddings=embeddings_tensor,
-        dropout=config.training.projection.dropout,
-        pooling=model_config.inference.pooling,
-    )
 
-    # Load checkpoint
+    # Load checkpoint first to check for token_mask
     checkpoint_path = (
         Path(args.checkpoint)
         if args.checkpoint
@@ -154,6 +148,23 @@ def _eval_pytorch_mode(args, logger) -> int:
             f"  Warning: weights_only load failed ({exc}); retrying without weights_only"
         )
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+
+    # Extract token_mask from checkpoint if present
+    token_mask = None
+    if "model_state_dict" in checkpoint and "token_mask" in checkpoint["model_state_dict"]:
+        token_mask = checkpoint["model_state_dict"]["token_mask"]
+        logger.info(f"  Found token_mask in checkpoint: {token_mask.sum().item():,} tokens enabled")
+
+    # Create model with token_mask from checkpoint
+    model = LanguageDetectionModel(
+        hidden_dim=model_config.hidden_dim,
+        n_languages=model_config.n_languages,
+        vocab_size=vocab_size,
+        embeddings=embeddings_tensor,
+        dropout=config.training.projection_dropout,
+        pooling=model_config.inference.pooling,
+        token_mask=token_mask,
+    )
 
     model.load_state_dict(checkpoint["model_state_dict"])
     model.to(device)
@@ -208,6 +219,6 @@ def run(args) -> int:
     logger = setup_logging()
 
     if args.model_path:
-        return _eval_fp8_mode(args, logger)
+        return _eval_inference_mode(args, logger)
     else:
         return _eval_pytorch_mode(args, logger)

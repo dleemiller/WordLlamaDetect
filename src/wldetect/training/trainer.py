@@ -1,7 +1,6 @@
 """Training loop for language detection model."""
 
 import logging
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -10,128 +9,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import SGD, Adam, AdamW
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from wldetect.config.models import TrainingConfig
-from wldetect.data.flores import create_flores_dataset, get_flores_language_distribution
+from wldetect.training.flores_eval import compute_flores_metrics, create_flores_eval_loader
 from wldetect.training.losses import FocalLoss
 from wldetect.training.model import LanguageDetectionModel
-
-
-def log_memory(prefix: str = ""):
-    """Log current memory usage."""
-    logger = logging.getLogger("wldetect")
-    try:
-        import psutil
-
-        process = psutil.Process(os.getpid())
-        mem_info = process.memory_info()
-        rss_gb = mem_info.rss / 1024**3
-        logger.info(f"{prefix}Memory: RSS={rss_gb:.2f}GB")
-
-        if torch.cuda.is_available():
-            allocated_gb = torch.cuda.memory_allocated() / 1024**3
-            reserved_gb = torch.cuda.memory_reserved() / 1024**3
-            logger.info(
-                f"{prefix}GPU: Allocated={allocated_gb:.2f}GB, Reserved={reserved_gb:.2f}GB"
-            )
-    except ImportError:
-        pass  # psutil not available
-
-
-class LanguageDetectionDataset(Dataset):
-    """PyTorch dataset for language detection with lazy tokenization.
-
-    IMPORTANT: Does NOT load embeddings - only tokenizes.
-    Embeddings are looked up in collate_fn to prevent worker memory accumulation.
-    """
-
-    def __init__(
-        self,
-        dataset,
-        tokenizer,
-        language_to_idx: dict[str, int],
-        max_length: int = 512,
-        logger: logging.Logger | None = None,
-    ):
-        """Initialize dataset.
-
-        Args:
-            dataset: HuggingFace dataset with 'text' and 'language' columns
-            tokenizer: Tokenizer instance
-            language_to_idx: Mapping from language code to index
-            max_length: Maximum sequence length
-        """
-        self.dataset = dataset
-        self.tokenizer = tokenizer
-        self.language_to_idx = language_to_idx
-        self.max_length = max_length
-        self.logger = logger or logging.getLogger("wldetect")
-
-    def __len__(self) -> int:
-        return len(self.dataset)
-
-    def __getitem__(self, idx: int) -> dict:
-        example = self.dataset[idx]
-        text = example.get("text", "")
-        if not isinstance(text, str) or text == "":
-            if not hasattr(self, "_warned_missing_text"):
-                self.logger.warning(
-                    f"Missing or empty text at index {idx}; replacing with empty string"
-                )
-                self._warned_missing_text = True
-            text = ""
-        language = example["language"]
-
-        # Tokenize on-the-fly
-        encoded = self.tokenizer(
-            text,
-            max_length=self.max_length,
-            truncation=True,
-            padding=False,  # Pad in collate_fn
-            return_tensors=None,  # Get lists
-        )
-
-        # CRITICAL: Only return token IDs and labels (no embeddings!)
-        # Workers don't accumulate large embedding tensors
-        return {
-            "token_ids": encoded["input_ids"],  # List of ints
-            "labels": self.language_to_idx[language],  # Single int
-        }
-
-
-def collate_fn(batch):
-    """Collate function for variable-length sequences.
-
-    Simple padding - no embedding lookup needed (model does it on GPU!)
-
-    Args:
-        batch: List of examples with 'token_ids' and 'labels'
-
-    Returns:
-        Batched data with padded token_ids and labels
-    """
-    token_ids_list = [item["token_ids"] for item in batch]
-    labels = torch.tensor([item["labels"] for item in batch], dtype=torch.long)
-
-    # Find max length in batch
-    max_len = max(len(ids) for ids in token_ids_list)
-
-    # Pre-allocate padded token IDs
-    batch_size = len(batch)
-    padded_token_ids = torch.zeros(batch_size, max_len, dtype=torch.long)
-
-    # Fill in token IDs
-    for i, token_ids in enumerate(token_ids_list):
-        seq_len = len(token_ids)
-        padded_token_ids[i, :seq_len] = torch.tensor(token_ids, dtype=torch.long)
-
-    return {
-        "token_ids": padded_token_ids,
-        "labels": labels,
-    }
 
 
 class Trainer:
@@ -197,20 +82,13 @@ class Trainer:
 
         # Loss function
         if config.training.loss == "cross_entropy":
-            self.criterion = nn.CrossEntropyLoss(
-                weight=class_weights,
-                label_smoothing=config.training.label_smoothing,
-            )
+            self.criterion = nn.CrossEntropyLoss(weight=class_weights)
         elif config.training.loss == "focal":
             # For focal loss, prefer focal_alpha if specified, otherwise use class_weights
             alpha = config.training.focal_alpha
             if alpha is None and class_weights is not None:
                 alpha = class_weights.cpu().numpy().tolist()
-            self.criterion = FocalLoss(
-                gamma=config.training.focal_gamma,
-                alpha=alpha,
-                label_smoothing=config.training.label_smoothing,
-            )
+            self.criterion = FocalLoss(gamma=config.training.focal_gamma, alpha=alpha)
         else:
             raise ValueError(f"Unsupported loss type: {config.training.loss}")
 
@@ -244,49 +122,26 @@ class Trainer:
 
         flores_split = self.config.evaluation.flores_split
 
-        self.logger.info(f"\nPreparing FLORES dataset for periodic evaluation ({flores_split})...")
-        flores_dataset, mapped_languages, skipped_languages = create_flores_dataset(
-            self.model_config.languages,
-            flores_split,
-            hf_dataset=self.config.evaluation.flores_hf_dataset,
-            cache_dir=self.config.evaluation.flores_cache_dir,
-        )
-        self._flores_lang_distribution = get_flores_language_distribution(
-            self.model_config.languages,
-            flores_split,
-            hf_dataset=self.config.evaluation.flores_hf_dataset,
-            cache_dir=self.config.evaluation.flores_cache_dir,
-        )
-        if skipped_languages:
-            info = (
-                f"Skipped FLORES languages (unmapped to model): "
-                f"{sorted(skipped_languages)[:10]} (total {len(skipped_languages)})"
-            )
-            self.logger.warning(info)
-            self._flores_last_mapping_info = info
-        else:
-            self._flores_last_mapping_info = "All FLORES languages mapped to model languages."
-
-        eval_dataset = LanguageDetectionDataset(
-            flores_dataset,
-            self.tokenizer,
-            self.model_config.languages,
-            max_length=self.model_config.inference.max_sequence_length,
-        )
-
         batch_size = self.config.evaluation.flores_batch_size or self.config.training.batch_size
-        self._flores_loader = DataLoader(
-            eval_dataset,
+        loader, skipped_languages, mapping_info, lang_distribution = create_flores_eval_loader(
+            model_config=self.model_config,
+            tokenizer=self.tokenizer,
+            split=flores_split,
             batch_size=batch_size,
-            shuffle=False,
-            collate_fn=collate_fn,
             num_workers=self.config.training.num_workers,
-            pin_memory=True,
-            prefetch_factor=4 if self.config.training.num_workers > 0 else None,
-            persistent_workers=True if self.config.training.num_workers > 0 else False,
+            hf_dataset=self.config.evaluation.flores_hf_dataset,
+            cache_dir=self.config.evaluation.flores_cache_dir,
+            show_summary=False,
         )
+        self._flores_loader = loader
+        self._flores_lang_distribution = lang_distribution
+        self._flores_last_mapping_info = mapping_info
+
+        if skipped_languages:
+            self.logger.warning(mapping_info)
+
         self.logger.info(
-            f"FLORES loader ready: {len(eval_dataset)} samples, "
+            f"FLORES loader ready: {len(loader.dataset)} samples, "
             f"batch_size={batch_size}, split={flores_split}"
         )
         return self._flores_loader
@@ -315,47 +170,32 @@ class Trainer:
                 labels.append(batch_labels.cpu().numpy())
 
         import numpy as np
-        from sklearn.metrics import accuracy_score, f1_score
 
         preds_np = np.concatenate(predictions)
         labels_np = np.concatenate(labels)
 
-        accuracy = accuracy_score(labels_np, preds_np)
-        f1_macro = f1_score(labels_np, preds_np, average="macro", zero_division=0)
-        f1_weighted = f1_score(labels_np, preds_np, average="weighted", zero_division=0)
+        metrics = compute_flores_metrics(labels_np, preds_np, self.model_config)
+        overall = metrics["overall"]
 
         step_tag = self.global_step
-        self.writer.add_scalar("flores/accuracy_step", accuracy, step_tag)
-        self.writer.add_scalar("flores/f1_macro_step", f1_macro, step_tag)
-        self.writer.add_scalar("flores/f1_weighted_step", f1_weighted, step_tag)
+        self.writer.add_scalar("flores/accuracy_step", overall["accuracy"], step_tag)
+        self.writer.add_scalar("flores/f1_macro_step", overall["f1_macro"], step_tag)
+        self.writer.add_scalar("flores/f1_weighted_step", overall["f1_weighted"], step_tag)
 
         # Per-language summary for quick inspection
-        language_codes = sorted(
-            self.model_config.languages.keys(), key=self.model_config.languages.get
-        )
-        per_lang = []
-        for idx, lang in enumerate(language_codes):
-            mask = labels_np == idx
-            if mask.sum() == 0:
-                continue
-            lang_acc = accuracy_score(labels_np[mask], preds_np[mask])
-            lang_f1 = f1_score(
-                labels_np[mask],
-                preds_np[mask],
-                labels=[idx],
-                average="macro",
-                zero_division=0,
+        per_lang_metrics = metrics.get("per_language", {})
+        if per_lang_metrics:
+            per_lang_sorted = sorted(
+                per_lang_metrics.items(), key=lambda x: x[1]["accuracy"], reverse=True
             )
-            per_lang.append((lang, lang_acc, lang_f1, int(mask.sum())))
-
-        if per_lang:
-            per_lang_sorted = sorted(per_lang, key=lambda x: x[1], reverse=True)
             top = per_lang_sorted[:10]
             bottom = per_lang_sorted[-10:]
 
             def _fmt(rows):
                 return "\n".join(
-                    f"{lang}: acc={acc:.4f}, f1={f1:.4f}, n={n}" for lang, acc, f1, n in rows
+                    f"{lang}: acc={info['accuracy']:.4f}, "
+                    f"f1={info['f1']:.4f}, n={info['n_samples']}"
+                    for lang, info in rows
                 )
 
             summary_text = (
@@ -369,7 +209,8 @@ class Trainer:
 
         self.logger.info(
             f"[FLORES eval @ step {step_tag}] "
-            f"accuracy={accuracy:.4f}, f1_macro={f1_macro:.4f}, f1_weighted={f1_weighted:.4f}"
+            f"accuracy={overall['accuracy']:.4f}, "
+            f"f1_macro={overall['f1_macro']:.4f}, f1_weighted={overall['f1_weighted']:.4f}"
         )
 
         if was_training:
@@ -442,8 +283,6 @@ class Trainer:
         total_loss = 0.0
         correct = 0
         total = 0
-
-        log_memory(f"[Epoch {self.current_epoch}] Start: ")
 
         progress_bar = tqdm(train_loader, desc=f"Epoch {self.current_epoch}")
         try:
@@ -521,10 +360,6 @@ class Trainer:
 
                         gc.collect()
 
-                        # Log memory every 100 batches
-                        if batch_idx % 100 == 0:
-                            log_memory(f"[Epoch {self.current_epoch}, Batch {batch_idx}] ")
-
                 except Exception as e:
                     self.logger.error(f"\n✗ Error in batch {batch_idx}: {e}", exc_info=True)
                     import traceback
@@ -545,8 +380,6 @@ class Trainer:
         import gc
 
         gc.collect()
-
-        log_memory(f"[Epoch {self.current_epoch}] End: ")
 
         return {
             "loss": total_loss / len(train_loader),
@@ -625,9 +458,8 @@ class Trainer:
             "gradient_clip": self.config.training.gradient_clip,
             "scheduler": self.config.training.scheduler or "none",
             "warmup_steps": self.config.training.warmup_steps,
-            "dropout": self.config.training.projection.dropout,
+            "dropout": self.config.training.projection_dropout,
             "num_workers": self.config.training.num_workers,
-            "label_smoothing": self.config.training.label_smoothing,
         }
         self.writer.add_hparams(hparams, {})
 

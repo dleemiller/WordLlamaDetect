@@ -15,7 +15,6 @@ training:
   epochs: 2
   optimizer: "adamw"
   loss: "focal"     # Options: "cross_entropy", "focal"
-  label_smoothing: 0      # Smoothing factor for CE/Focal (0 disables)
   focal_gamma: 10.0          # Focal loss gamma (only used when loss="focal")
   #focal_alpha: null         # Optional class weighting for focal loss (float or list)
   weight_decay: 0.0001
@@ -25,7 +24,7 @@ training:
 
   # Class weighting
   class_weights: "log_population"
-  class_weights_power: 0.75
+  class_weights_power: 1.25
   population_data_path: "configs/language_populations.yaml"
 
 
