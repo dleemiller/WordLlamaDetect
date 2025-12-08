@@ -2,8 +2,10 @@
 
 from pathlib import Path
 
-import torch
-import torch.nn as nn
+import pytest
+
+torch = pytest.importorskip("torch")
+nn = pytest.importorskip("torch.nn")
 
 from wldetect.config.models import OutputConfig, TrainingConfig
 from wldetect.training.trainer import Trainer

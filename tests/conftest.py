@@ -6,7 +6,8 @@ import ml_dtypes
 import numpy as np
 import pytest
 import yaml
-from datasets import Dataset
+
+Dataset = pytest.importorskip("datasets").Dataset
 from tokenizers import Tokenizer, models, pre_tokenizers, trainers
 
 # ==== Model Config Fixtures ====

@@ -3,8 +3,10 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import torch
-import torch.nn as nn
+import pytest
+
+torch = pytest.importorskip("torch")
+nn = pytest.importorskip("torch.nn")
 
 from wldetect.config.models import (
     EvaluationConfig,

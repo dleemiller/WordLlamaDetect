@@ -1,6 +1,8 @@
 """Tests for custom loss functions."""
 
-import torch
+import pytest
+
+torch = pytest.importorskip("torch")
 
 from wldetect.training.losses import FocalLoss
 
