@@ -8,14 +8,14 @@ Fast, lightweight language detection using static LLM embeddings with learned pr
 
 ## Overview
 
-WordLlama Detect is a language detection library that uses static embeddings from large language models combined with a simple learned projection layer. This detector is fast, accurate and targets CPU & numpy-only inference.
+WordLlama Detect is a language detection library that uses static embeddings trained from large language models. This detector is fast, accurate and targets CPU & numpy-only inference.
 
 **Features:**
 - NumPy-only inference with no PyTorch dependency
 - Pre-trained model (148 languages)
-- Sparse exp lookup table (13MB, 91% size reduction)
-- Fast inference: ~30k texts/s single thread
-- Simple API
+- Sparse lookup table (13MB)
+- Fast inference: >70k texts/s single thread
+- Simple to use
 
 ## Installation
 
@@ -42,14 +42,6 @@ wld = WLDetect.load()
 
 # Detect language for single text
 lang, confidence = wld.predict("Hello, how are you today?")
-print(f"Detected: {lang} (confidence: {confidence:.2%})")
-# Output: Detected: eng_Latn (confidence: 99.84%)
-
-# Detect language for multiple texts (uses batch tokenization)
-texts = ["Hello world", "Bonjour le monde", "Hola mundo", "你好世界"]
-results = wld.predict(texts)
-for text, (lang, conf) in zip(texts, results):
-    print(f"{text} → {lang} ({conf:.2%})")
 ```
 
 ### CLI Usage
@@ -69,12 +61,9 @@ uv run wldetect detect --model-path /path/to/model --text "Hello"
 
 WLDetect ships with a pre-trained model based on concatenated Gemma3-27B + Gemma3-4B token embeddings:
 - **Languages**: 148 (from OpenLID-v2 dataset)
-- **Model size**: 13MB (sparse exp lookup table, 97.15% sparsity)
 - **Accuracy**: 92.92% on FLORES+ dev set
 - **F1 (macro)**: 92.74%
 - **Language codes**: ISO 639-3 + ISO 15924 script (e.g., `eng_Latn`, `cmn_Hans`, `arb_Arab`)
-
-The model loads automatically with `WLDetect.load()` - no separate download needed.
 
 See [docs/languages.md](docs/languages.md) for the complete list of supported languages with performance metrics.
 
@@ -82,52 +71,36 @@ See [docs/languages.md](docs/languages.md) for the complete list of supported la
 
 ### Simple Inference Pipeline (NumPy-only)
 
-1. **Tokenize**: Use HuggingFace fast tokenizer (Rust-based, no PyTorch)
-2. **Lookup**: Index into pre-computed exp lookup table (vocab_size × n_languages)
-3. **Pool**: LogSumExp pooling over token sequence
-4. **Softmax**: Convert to language probabilities
+1. **Tokenize**: Use HuggingFace fast tokenizer
+2. **Lookup**: Index into pre-computed exponential lookup table (vocab_size × n_languages)
+3. **Pool**: LogSum pooling over token sequence
+4. **Softmax**: Calculate language probabilities
 
 The lookup table is pre-trained using: `exp((embeddings * token_weights) @ projection.T + bias)`,
 where embeddings are frozen token embeddings from Gemma3, trained with focal loss on OpenLID-v2.
+During training, token vectors are aggregated using *logsumexp* pooling along the sequence dimension.
 
-**Key optimization**: We pre-compute `exp(logits)` before saving, enabling efficient LogSumExp pooling:
+**Optimization**: re-compute `exp(logits)` before saving, enabling efficient LogSumExp pooling.
+Additionally, with a threshold, this makes the table sparse, and reduces the size 10x (~130mb -> 13mb).
 
-```python
-# Lookup pre-exponentiated values
-exp_values = lookup_table[token_ids]  # O(seq_len) lookup
-# Complete logsumexp: log(sum(exp(logits)))
-pooled = log(sum(exp_values, axis=0))  # O(seq_len * n_langs)
-# Get probabilities
-probs = softmax(pooled)                # O(n_langs)
-```
-
-This avoids runtime `exp()` calls while maintaining numerical stability.
-
-### Sparse Storage
+### Sparse Lookup Table
 
 The lookup table uses sparse COO (Coordinate) format with configurable sparsification threshold:
-- **Original size**: ~148MB (dense fp32)
-- **Sparse size**: 13MB (threshold=10.0, default)
-- **Sparsity**: 97.15% (values below threshold set to zero)
+- **Sparsity**: 97.15% (values below threshold (<10) set to zero)
 - **Format**: COO (row, col, data) indices stored as int32, values as fp32
 - **Performance impact**: Negligible (0.003% accuracy loss)
 
-Sparsification is applied after exp() pre-computation, removing small exp values that contribute minimally to LogSumExp pooling. The threshold is configurable during model creation.
 
 ## Performance
 
 ### FLORES+ Benchmark Results
 
-Evaluated on FLORES+ dataset (148 languages, ~1,012 sentences per language):
+Evaluated on FLORES+ dataset (148 languages, ~1k sentences per language):
 
 | Split   | Accuracy | F1 (macro) | F1 (weighted) | Samples  |
 |---------|----------|------------|---------------|----------|
 | dev     | 92.92%   | 92.74%     | 92.75%        | 150,547  |
 | devtest | 92.86%   | 92.71%     | 92.69%        | 153,824  |
-
-**Top performing languages**: 31 languages achieve 100% accuracy on dev set, including `asm_Beng`, `ben_Beng`, `cmn_Hant`, `dzo_Tibt`, `ell_Grek`, `jpn_Jpan`, `kor_Hang`, and more.
-
-**Challenging languages**: Languages with close dialectal relationships show lower accuracy: `arz_Arab` (27%), `bho_Deva` (36%), `knc_Arab` (46%), `zsm_Latn` (48%) - primarily confusion with closely related variants.
 
 For detailed per-language performance, see [docs/languages.md](docs/languages.md).
 
@@ -218,20 +191,6 @@ uv run wldetect create-lookup \
   --checkpoint artifacts/checkpoints/checkpoint_step_100000.pt \
   --config configs/training/gemma3-27b.yaml \
   --output-dir artifacts/
-
-# Custom sparsification threshold
-uv run wldetect create-lookup \
-  --checkpoint artifacts/checkpoints/checkpoint_step_100000.pt \
-  --config configs/training/gemma3-27b.yaml \
-  --output-dir artifacts/ \
-  --threshold 5.0
-
-# Force dense storage (no sparsification)
-uv run wldetect create-lookup \
-  --checkpoint artifacts/checkpoints/checkpoint_step_100000.pt \
-  --config configs/training/gemma3-27b.yaml \
-  --output-dir artifacts/ \
-  --dense
 ```
 
 ### Training Details
