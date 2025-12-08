@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from wldetect.inference.utils import softmax
+from wldetect.softmax import softmax
 
 
 def test_softmax():

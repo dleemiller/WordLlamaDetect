@@ -20,17 +20,16 @@ def test_config_imports():
 
 def test_embeddings_imports():
     """Test embeddings module imports."""
-    from wldetect.embeddings import EmbeddingsManager
+    from wldetect.training.embeddings import EmbeddingsManager
 
     assert hasattr(EmbeddingsManager, "extract_embeddings")
     assert hasattr(EmbeddingsManager, "load_cached_embeddings")
     assert hasattr(EmbeddingsManager, "load_as_memmap")
 
 
-def test_inference_imports():
-    """Test inference module imports."""
-    from wldetect import WLDetect
-    from wldetect.inference import utils
+def test_softmax_imports():
+    """Test softmax module imports."""
+    from wldetect import WLDetect, softmax
 
     assert hasattr(WLDetect, "load")
-    assert hasattr(utils, "softmax")
+    assert hasattr(softmax, "softmax")

@@ -22,7 +22,7 @@ def run(args) -> int:
     import torch
 
     from wldetect.config.loader import load_model_config, load_training_config
-    from wldetect.embeddings import EmbeddingsManager
+    from wldetect.training.embeddings import EmbeddingsManager
     from wldetect.training.lookup_table import (
         compute_lookup_table,
         compute_lookup_table_exp,
