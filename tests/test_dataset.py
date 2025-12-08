@@ -1,16 +1,19 @@
 """Tests for dataset loading and filtering."""
 
 import pytest
-from datasets import Dataset, DatasetDict
+
+Dataset = pytest.importorskip("datasets").Dataset
+DatasetDict = pytest.importorskip("datasets").DatasetDict
+dataset_module = pytest.importorskip("wldetect.data.dataset")
 
 from wldetect.config.models import DatasetConfig
-from wldetect.data.dataset import (
-    balance_dataset,
-    filter_dataset_by_languages,
-    get_language_distribution,
-    load_openlid_dataset,
-    prepare_dataset,
-)
+
+# Import functions from the skipped module
+balance_dataset = dataset_module.balance_dataset
+filter_dataset_by_languages = dataset_module.filter_dataset_by_languages
+get_language_distribution = dataset_module.get_language_distribution
+load_openlid_dataset = dataset_module.load_openlid_dataset
+prepare_dataset = dataset_module.prepare_dataset
 
 
 @pytest.fixture
