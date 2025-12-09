@@ -19,7 +19,11 @@ WordLlama detect was trained from static token embeddings extracted from *Gemma3
 
 ## Installation
 
-Install from source:
+```bash
+pip install wldetect
+```
+
+Or install from source:
 ```bash
 git clone https://github.com/dleemiller/wldetect.git
 cd wldetect
