@@ -10,7 +10,7 @@ from huggingface_hub import hf_hub_download, list_repo_files
 from safetensors import safe_open
 from safetensors.numpy import save_file
 
-from wldetect.config.models import ModelConfig, SingleModelConfig
+from wldetect.config import ModelConfig, SingleModelConfig
 
 logger = logging.getLogger("wldetect")
 
@@ -25,7 +25,7 @@ class EmbeddingsManager:
     - Handling multi-model concatenation
 
     Example:
-        >>> from wldetect.config.loader import load_model_config
+        >>> from wldetect.config import load_model_config
         >>> config = load_model_config("configs/models/qwen.yaml")
         >>> manager = EmbeddingsManager(config)
         >>> embeddings = manager.extract_embeddings()  # Downloads + caches

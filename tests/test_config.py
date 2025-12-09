@@ -6,13 +6,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-from wldetect.config.loader import load_model_config, save_model_config
-from wldetect.config.models import (
+from wldetect.config import (
     DatasetConfig,
     InferenceConfig,
     ModelConfig,
     SingleModelConfig,
     TrainingConfig,
+    load_model_config,
+    save_model_config,
 )
 
 

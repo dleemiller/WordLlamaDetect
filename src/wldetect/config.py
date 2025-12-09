@@ -1,7 +1,9 @@
-"""Pydantic models for configuration schemas."""
+"""Configuration schemas with integrated loading methods."""
 
+from pathlib import Path
 from typing import Literal
 
+import yaml
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -120,6 +122,38 @@ class ModelConfig(BaseModel):
     def n_languages(self) -> int:
         """Get the number of languages."""
         return len(self.languages)
+
+    @classmethod
+    def load(cls, path: str | Path) -> "ModelConfig":
+        """Load model configuration from YAML file.
+
+        Args:
+            path: Path to model config YAML
+
+        Returns:
+            Validated ModelConfig instance
+
+        Raises:
+            FileNotFoundError: If file doesn't exist
+            ValueError: If config is invalid
+        """
+        data = _load_yaml(path)
+        return cls(**data)
+
+    def save(self, path: str | Path) -> None:
+        """Save model configuration to YAML file.
+
+        Args:
+            path: Output path for YAML file
+        """
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Convert to dict, excluding None values
+        data = self.model_dump(exclude_none=True)
+
+        with open(path, "w") as f:
+            yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
 
 class DatasetConfig(BaseModel):
@@ -263,3 +297,61 @@ class TrainingConfig(BaseModel):
     training: TrainingHyperparameters = Field(default_factory=TrainingHyperparameters)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
+
+    @classmethod
+    def load(cls, path: str | Path) -> "TrainingConfig":
+        """Load training configuration from YAML file.
+
+        Args:
+            path: Path to training config YAML
+
+        Returns:
+            Validated TrainingConfig instance
+
+        Raises:
+            FileNotFoundError: If file doesn't exist
+            ValueError: If config is invalid
+        """
+        data = _load_yaml(path)
+        return cls(**data)
+
+
+def _load_yaml(path: str | Path) -> dict:
+    """Load a YAML file.
+
+    Args:
+        path: Path to YAML file
+
+    Returns:
+        Parsed YAML as dictionary
+
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        yaml.YAMLError: If YAML is invalid
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Config file not found: {path}")
+
+    with open(path) as f:
+        data = yaml.safe_load(f)
+
+    if data is None:
+        raise ValueError(f"Empty config file: {path}")
+
+    return data
+
+
+# For backwards compatibility during transition
+load_model_config = ModelConfig.load
+load_training_config = TrainingConfig.load
+
+
+def save_model_config(config: ModelConfig, path: str | Path) -> None:
+    """Save model configuration to YAML file (backwards compatibility wrapper).
+
+    Args:
+        config: ModelConfig instance
+        path: Output path for YAML file
+    """
+    config.save(path)

@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
-from wldetect.config.loader import load_model_config, load_training_config
+from wldetect.config import load_model_config, load_training_config
 from wldetect.data.dataset import prepare_dataset
 from wldetect.tokenization import disable_chat_template
 from wldetect.training.trainer import LanguageDetectionDataset

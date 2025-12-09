@@ -8,7 +8,7 @@ import pytest
 torch = pytest.importorskip("torch")
 save_file = pytest.importorskip("safetensors.torch").save_file
 
-from wldetect.config.models import ModelConfig, SingleModelConfig
+from wldetect.config import ModelConfig, SingleModelConfig
 from wldetect.training.embeddings import EmbeddingsManager
 
 

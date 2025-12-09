@@ -7,7 +7,7 @@ import numpy as np
 from safetensors import safe_open
 from tokenizers import Tokenizer
 
-from wldetect.config.loader import load_model_config
+from wldetect.config import load_model_config
 from wldetect.softmax import softmax
 
 logger = logging.getLogger("wldetect")

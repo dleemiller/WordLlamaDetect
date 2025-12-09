@@ -6,7 +6,7 @@ Dataset = pytest.importorskip("datasets").Dataset
 DatasetDict = pytest.importorskip("datasets").DatasetDict
 dataset_module = pytest.importorskip("wldetect.data.dataset")
 
-from wldetect.config.models import DatasetConfig
+from wldetect.config import DatasetConfig
 
 # Import functions from the skipped module
 balance_dataset = dataset_module.balance_dataset
