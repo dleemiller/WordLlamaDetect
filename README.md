@@ -1,6 +1,8 @@
 # WordLlama Detect
 
-Fast, lightweight language detection using static LLM embeddings with learned projection.
+**WordLlama Detect** is a [WordLlama](https://github.com/dleemiller/WordLlama)-like library focused on the task of language identification.
+It supports identification of **148 languages**, and high accuracy and fast CPU & numpy-only inference.
+WordLlama detect was trained from static token embeddings extracted from *Gemma3*-series LLMs.
 
 <p align="center">
   <img src="assets/wordllamadetect.jpeg" alt="WordLlamaDetect" width="90%">
@@ -8,18 +10,16 @@ Fast, lightweight language detection using static LLM embeddings with learned pr
 
 ## Overview
 
-WordLlama Detect is a language detection library that uses static embeddings trained from large language models. This detector is fast, accurate and targets CPU & numpy-only inference.
-
 **Features:**
 - NumPy-only inference with no PyTorch dependency
-- Pre-trained model (148 languages)
+- Pre-trained model (148 languages), with [103 languages above 95% accuracy](docs/languages.md)
 - Sparse lookup table (13MB)
 - Fast inference: >70k texts/s single thread
-- Simple to use
+- Simple interface
 
 ## Installation
 
-Or from source:
+Install from source:
 ```bash
 git clone https://github.com/dleemiller/wldetect.git
 cd wldetect
@@ -38,6 +38,7 @@ wld = WLDetect.load()
 
 # Detect language for single text
 lang, confidence = wld.predict("Hello, how are you today?")
+# ('eng_Latn', 0.9564036726951599)
 ```
 
 ### CLI Usage
@@ -48,12 +49,9 @@ uv run wldetect detect --text "Bonjour le monde"
 
 # Detect from file
 uv run wldetect detect --file input.txt
-
-# Use custom model
-uv run wldetect detect --model-path /path/to/model --text "Hello"
 ```
 
-## Bundled Model
+## Included Model
 
 WLDetect ships with a pre-trained model based on concatenated Gemma3-27B + Gemma3-4B token embeddings:
 - **Languages**: 148 (from OpenLID-v2 dataset)
@@ -61,13 +59,19 @@ WLDetect ships with a pre-trained model based on concatenated Gemma3-27B + Gemma
 - **F1 (macro)**: 92.74%
 - **Language codes**: ISO 639-3 + ISO 15924 script (e.g., `eng_Latn`, `cmn_Hans`, `arb_Arab`)
 
-See [docs/languages.md](docs/languages.md) for the complete list of supported languages with performance metrics.
+
+> [!TIP]
+> See [docs/languages.md](docs/languages.md) for the complete list of supported languages with performance metrics.
+
+> [!NOTE]  
+> Gemma3 is a good choice for this application, because it was trained on over 140 languages.
+> The tokenizer, vocab size (262k) and multi-language training are critical for performance.
 
 ## Architecture
 
 ### Simple Inference Pipeline (NumPy-only)
 
-1. **Tokenize**: Use HuggingFace fast tokenizer
+1. **Tokenize**: Use HuggingFace fast tokenizer (512-length truncation)
 2. **Lookup**: Index into pre-computed exponential lookup table (vocab_size × n_languages)
 3. **Pool**: LogSum pooling over token sequence
 4. **Softmax**: Calculate language probabilities
@@ -76,8 +80,11 @@ The lookup table is pre-trained using: `exp((embeddings * token_weights) @ proje
 where embeddings are frozen token embeddings from Gemma3, trained with focal loss on OpenLID-v2.
 During training, token vectors are aggregated using *logsumexp* pooling along the sequence dimension.
 
-**Optimization**: re-compute `exp(logits)` before saving, enabling efficient LogSumExp pooling.
-Additionally, with a threshold, this makes the table sparse, and reduces the size 10x (~130mb -> 13mb).
+
+> [!IMPORTANT]  
+> To optimize artifact size and compute, we perform `exp(logits)` before saving the lookup table.
+> Then we apply a threshold to make the table *sparse*.
+> This reduces the artifact size 10x (~130mb -> 13mb), with negligable performance degradation.
 
 ### Sparse Lookup Table
 
@@ -98,16 +105,14 @@ Evaluated on FLORES+ dataset (148 languages, ~1k sentences per language):
 | dev     | 92.92%   | 92.74%     | 92.75%        | 150,547  |
 | devtest | 92.86%   | 92.71%     | 92.69%        | 153,824  |
 
-For detailed per-language performance, see [docs/languages.md](docs/languages.md).
+See [docs/languages.md](docs/languages.md) for detailed results.
 
 ### Inference Speed
 
-Benchmarked on sparse exp lookup table (13MB, single-threaded):
+Benchmarked on 12th gen Intel-i9 (single thread):
 
 - **Single text**: 71,500 texts/second (0.014 ms/text)
 - **Batch (1000)**: 82,500 texts/second (12.1 ms/batch)
-
-The sparse format maintains high inference speed while reducing model size by 91%.
 
 ## Supported Languages
 
@@ -123,7 +128,7 @@ See [model_config.yaml](src/wldetect/models/model_config.yaml) for the complete 
 # CPU or default CUDA version
 uv sync --extra training
 
-# With CUDA 12.8 (recommended for GPU training)
+# With CUDA 12.8 (Blackwell)
 uv sync --extra cu128
 ```
 
