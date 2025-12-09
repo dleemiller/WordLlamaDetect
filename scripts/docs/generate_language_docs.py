@@ -105,12 +105,9 @@ def generate_language_docs(
         # Performance summary
         f.write("## Performance Summary\n\n")
         f.write(f"- **Average Accuracy**: {overall['accuracy']:.2%}\n")
-        f.write(f"- **Macro F1 Score**: {overall['f1_macro']:.4f}\n")
-        f.write(f"- **Weighted F1 Score**: {overall['f1_weighted']:.4f}\n")
         f.write(f"- **Macro Precision**: {overall['precision_macro']:.4f}\n")
-        f.write(f"- **Weighted Precision**: {overall['precision_weighted']:.4f}\n")
         f.write(f"- **Macro Recall**: {overall['recall_macro']:.4f}\n")
-        f.write(f"- **Weighted Recall**: {overall['recall_weighted']:.4f}\n")
+        f.write(f"- **Macro F1**: {overall['f1_macro']:.4f}\n")
         f.write(f"- **Languages ≥ 95% accuracy**: {high_acc_95}/{len(per_language)}\n")
         f.write(f"- **Languages ≥ 90% accuracy**: {high_acc_90}/{len(per_language)}\n\n")
 
@@ -120,30 +117,25 @@ def generate_language_docs(
 
         # Table header
         if populations:
-            f.write("| Language Code | Accuracy | F1 | Precision | Recall | Speakers |\n")
-            f.write("|--------------|----------|-----|-----------|--------|----------|\n")
+            f.write("| Language Code | Accuracy | Precision | F1 | Speakers |\n")
+            f.write("|--------------|----------|-----------|-----|----------|\n")
         else:
-            f.write("| Language Code | Accuracy | F1 | Precision | Recall |\n")
-            f.write("|--------------|----------|-----|-----------|--------|\n")
+            f.write("| Language Code | Accuracy | Precision | F1 |\n")
+            f.write("|--------------|----------|-----------|-----|\n")
 
         # Table rows
         for lang_code, metrics in sorted_languages:
             acc = metrics["accuracy"]
             f1 = metrics["f1"]
             precision = metrics["precision"]
-            recall = metrics["recall"]
 
             if populations:
                 speakers = populations.get(lang_code, "Unknown")
                 if isinstance(speakers, int):
                     speakers = format_number(speakers)
-                f.write(
-                    f"| {lang_code} | {acc:.2%} | {f1:.4f} | {precision:.4f} | {recall:.4f} | {speakers} |\n"
-                )
+                f.write(f"| {lang_code} | {acc:.2%} | {precision:.4f} | {f1:.4f} | {speakers} |\n")
             else:
-                f.write(
-                    f"| {lang_code} | {acc:.2%} | {f1:.4f} | {precision:.4f} | {recall:.4f} |\n"
-                )
+                f.write(f"| {lang_code} | {acc:.2%} | {precision:.4f} | {f1:.4f} |\n")
 
         # Notes section
         f.write("\n## Notes\n\n")

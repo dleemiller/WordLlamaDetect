@@ -165,18 +165,11 @@ def run(args) -> int:
 
     # Log FLORES results to TensorBoard
     trainer.writer.add_scalar("flores/accuracy", flores_results["overall"]["accuracy"], 0)
-    trainer.writer.add_scalar("flores/f1_macro", flores_results["overall"]["f1_macro"], 0)
-    trainer.writer.add_scalar("flores/f1_weighted", flores_results["overall"]["f1_weighted"], 0)
     trainer.writer.add_scalar(
         "flores/precision_macro", flores_results["overall"]["precision_macro"], 0
     )
-    trainer.writer.add_scalar(
-        "flores/precision_weighted", flores_results["overall"]["precision_weighted"], 0
-    )
     trainer.writer.add_scalar("flores/recall_macro", flores_results["overall"]["recall_macro"], 0)
-    trainer.writer.add_scalar(
-        "flores/recall_weighted", flores_results["overall"]["recall_weighted"], 0
-    )
+    trainer.writer.add_scalar("flores/f1_macro", flores_results["overall"]["f1_macro"], 0)
 
     # Log top/bottom language accuracies
     per_lang_metrics = flores_results["per_language"]

@@ -179,14 +179,9 @@ class Trainer:
 
         step_tag = self.global_step
         self.writer.add_scalar("flores/accuracy_step", overall["accuracy"], step_tag)
-        self.writer.add_scalar("flores/f1_macro_step", overall["f1_macro"], step_tag)
-        self.writer.add_scalar("flores/f1_weighted_step", overall["f1_weighted"], step_tag)
         self.writer.add_scalar("flores/precision_macro_step", overall["precision_macro"], step_tag)
-        self.writer.add_scalar(
-            "flores/precision_weighted_step", overall["precision_weighted"], step_tag
-        )
         self.writer.add_scalar("flores/recall_macro_step", overall["recall_macro"], step_tag)
-        self.writer.add_scalar("flores/recall_weighted_step", overall["recall_weighted"], step_tag)
+        self.writer.add_scalar("flores/f1_macro_step", overall["f1_macro"], step_tag)
 
         # Per-language summary for quick inspection
         per_lang_metrics = metrics.get("per_language", {})
@@ -200,9 +195,8 @@ class Trainer:
             def _fmt(rows):
                 return "\n".join(
                     f"{lang}: acc={info['accuracy']:.4f}, "
-                    f"f1={info['f1']:.4f}, "
                     f"prec={info['precision']:.4f}, "
-                    f"rec={info['recall']:.4f}, "
+                    f"f1={info['f1']:.4f}, "
                     f"n={info['n_samples']}"
                     for lang, info in rows
                 )
