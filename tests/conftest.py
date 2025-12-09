@@ -233,43 +233,6 @@ def realistic_model_dir(tmp_path, realistic_model_config_dict, realistic_exp_loo
 
 
 # ==== Dataset Fixtures ====
-
-
-@pytest.fixture
-def minimal_openlid_dataset():
-    """Mock minimal dataset (30 samples, 3 languages)."""
-    data = {
-        "text": ["Hello world", "Bonjour le monde", "Hola mundo"] * 10,
-        "language": ["eng_Latn", "fra_Latn", "spa_Latn"] * 10,
-    }
-    return Dataset.from_dict(data)
-
-
-@pytest.fixture
-def realistic_openlid_dataset():
-    """Mock realistic dataset (200 samples, 10 languages)."""
-    texts = {
-        "eng_Latn": ["Hello world", "How are you", "Good morning"],
-        "fra_Latn": ["Bonjour le monde", "Comment allez-vous", "Bon matin"],
-        "spa_Latn": ["Hola mundo", "Cómo estás", "Buenos días"],
-        "deu_Latn": ["Hallo Welt", "Wie geht es dir", "Guten Morgen"],
-        "ita_Latn": ["Ciao mondo", "Come stai", "Buongiorno"],
-        "por_Latn": ["Olá mundo", "Como você está", "Bom dia"],
-        "rus_Cyrl": ["Привет мир", "Как дела", "Доброе утро"],
-        "zho_Hans": ["你好世界", "你好吗", "早上好"],
-        "jpn_Jpan": ["こんにちは世界", "お元気ですか", "おはよう"],
-        "ara_Arab": ["مرحبا العالم", "كيف حالك", "صباح الخير"],
-    }
-
-    data = {"text": [], "language": []}
-    for lang, samples in texts.items():
-        for sample in samples * 7:  # 21 samples per language = 210 total
-            data["text"].append(sample)
-            data["language"].append(lang)
-
-    return Dataset.from_dict(data)
-
-
 # ==== Mocking Fixtures ====
 
 
@@ -287,67 +250,4 @@ def mock_tokenizer_from_pretrained_realistic(mocker, realistic_tokenizer):
     return realistic_tokenizer
 
 
-@pytest.fixture
-def mock_load_dataset(mocker, minimal_openlid_dataset):
-    """Mock datasets.load_dataset to return minimal dataset."""
-    from datasets import DatasetDict
-
-    mocker.patch(
-        "datasets.load_dataset",
-        return_value=DatasetDict({"train": minimal_openlid_dataset}),
-    )
-
-
-@pytest.fixture
-def mock_load_dataset_realistic(mocker, realistic_openlid_dataset):
-    """Mock datasets.load_dataset to return realistic dataset."""
-    from datasets import DatasetDict
-
-    mocker.patch(
-        "datasets.load_dataset",
-        return_value=DatasetDict({"train": realistic_openlid_dataset}),
-    )
-
-
-@pytest.fixture
-def mock_hf_hub_download(mocker, tmp_path):
-    """Mock HuggingFace hub downloads."""
-
-    def mock_download(repo_id, filename, **kwargs):
-        # Return path to a dummy file
-        dummy_file = tmp_path / filename
-        dummy_file.touch()
-        return str(dummy_file)
-
-    mocker.patch("huggingface_hub.hf_hub_download", side_effect=mock_download)
-
-
-@pytest.fixture
-def mock_list_repo_files(mocker):
-    """Mock HuggingFace repo file listing."""
-    # Patch where it's imported in the loader module
-    mocker.patch(
-        "wldetect.embeddings.loader.list_repo_files",
-        return_value=[
-            "model-00001-of-00002.safetensors",
-            "model-00002-of-00002.safetensors",
-            "config.json",
-        ],
-    )
-
-
 # ==== Test Embeddings Fixtures ====
-
-
-@pytest.fixture
-def minimal_embeddings():
-    """Create minimal test embeddings (100 tokens × 128 dim)."""
-    np.random.seed(42)
-    return np.random.randn(100, 128).astype(np.float32)
-
-
-@pytest.fixture
-def realistic_embeddings():
-    """Create realistic test embeddings (1000 tokens × 256 dim)."""
-    np.random.seed(42)
-    return np.random.randn(1000, 256).astype(np.float32)
