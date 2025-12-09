@@ -26,6 +26,7 @@ def run(args) -> int:
 
     from wldetect.config import load_model_config, load_training_config, save_model_config
     from wldetect.data.dataset import prepare_dataset
+    from wldetect.training.datasets import LanguageDetectionDataset, collate_fn
     from wldetect.training.embeddings import EmbeddingsManager
     from wldetect.training.flores_eval import evaluate_on_flores, save_flores_evaluation
     from wldetect.training.lookup_table import (
@@ -33,11 +34,7 @@ def run(args) -> int:
         save_projection_matrix,
     )
     from wldetect.training.model import LanguageDetectionModel
-    from wldetect.training.trainer import (
-        LanguageDetectionDataset,
-        Trainer,
-        collate_fn,
-    )
+    from wldetect.training.trainer import Trainer
 
     # Load configuration
     logger.info("Loading configuration...")

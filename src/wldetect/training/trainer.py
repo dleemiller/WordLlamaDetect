@@ -213,7 +213,7 @@ class Trainer:
         self.logger.info(
             f"[FLORES eval @ step {step_tag}] "
             f"accuracy={overall['accuracy']:.4f}, "
-            f"f1_macro={overall['f1_macro']:.4f}, f1_weighted={overall['f1_weighted']:.4f}"
+            f"f1_macro={overall['f1_macro']:.4f}"
         )
 
         if was_training:
