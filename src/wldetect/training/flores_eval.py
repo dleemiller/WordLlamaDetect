@@ -105,23 +105,27 @@ def _compute_metrics(labels: np.ndarray, predictions: np.ndarray, model_config) 
         lang_labels = labels[lang_mask]
 
         lang_accuracy = accuracy_score(lang_labels, lang_predictions)
+
+        # For precision and recall, use full arrays to capture false positives/negatives
+        # Precision: Of all predictions as language i, how many were correct?
+        # Recall: Of all true instances of language i, how many were predicted correctly?
         lang_f1 = f1_score(
-            lang_labels,
-            lang_predictions,
+            labels,
+            predictions,
             labels=[i],
             average="macro",
             zero_division=0,
         )
         lang_precision = precision_score(
-            lang_labels,
-            lang_predictions,
+            labels,
+            predictions,
             labels=[i],
             average="macro",
             zero_division=0,
         )
         lang_recall = recall_score(
-            lang_labels,
-            lang_predictions,
+            labels,
+            predictions,
             labels=[i],
             average="macro",
             zero_division=0,
