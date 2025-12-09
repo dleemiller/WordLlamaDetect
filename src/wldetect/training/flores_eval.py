@@ -9,7 +9,13 @@ import torch
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+)
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -81,6 +87,10 @@ def _compute_metrics(labels: np.ndarray, predictions: np.ndarray, model_config) 
     accuracy = accuracy_score(labels, predictions)
     f1_macro = f1_score(labels, predictions, average="macro", zero_division=0)
     f1_weighted = f1_score(labels, predictions, average="weighted", zero_division=0)
+    precision_macro = precision_score(labels, predictions, average="macro", zero_division=0)
+    precision_weighted = precision_score(labels, predictions, average="weighted", zero_division=0)
+    recall_macro = recall_score(labels, predictions, average="macro", zero_division=0)
+    recall_weighted = recall_score(labels, predictions, average="weighted", zero_division=0)
 
     language_codes = sorted(model_config.languages.keys(), key=lambda k: model_config.languages[k])
     per_language_metrics = {}
@@ -102,10 +112,26 @@ def _compute_metrics(labels: np.ndarray, predictions: np.ndarray, model_config) 
             average="macro",
             zero_division=0,
         )
+        lang_precision = precision_score(
+            lang_labels,
+            lang_predictions,
+            labels=[i],
+            average="macro",
+            zero_division=0,
+        )
+        lang_recall = recall_score(
+            lang_labels,
+            lang_predictions,
+            labels=[i],
+            average="macro",
+            zero_division=0,
+        )
 
         per_language_metrics[lang_code] = {
             "accuracy": float(lang_accuracy),
             "f1": float(lang_f1),
+            "precision": float(lang_precision),
+            "recall": float(lang_recall),
             "n_samples": n_samples,
             "support": float(n_samples / len(labels)),
         }
@@ -117,6 +143,10 @@ def _compute_metrics(labels: np.ndarray, predictions: np.ndarray, model_config) 
             "accuracy": float(accuracy),
             "f1_macro": float(f1_macro),
             "f1_weighted": float(f1_weighted),
+            "precision_macro": float(precision_macro),
+            "precision_weighted": float(precision_weighted),
+            "recall_macro": float(recall_macro),
+            "recall_weighted": float(recall_weighted),
             "total_samples": int(len(labels)),
         },
         "per_language": per_language_metrics,
@@ -133,11 +163,15 @@ def _print_metrics(metrics: dict) -> None:
     console.print(Panel("[bold green]EVALUATION RESULTS[/bold green]", expand=False))
 
     overall_table = Table(title="Overall Metrics", show_header=False, box=None)
-    overall_table.add_column("Metric", style="cyan", width=15)
+    overall_table.add_column("Metric", style="cyan", width=20)
     overall_table.add_column("Value", style="green", justify="right")
     overall_table.add_row("Accuracy", f"{overall['accuracy']:.4f}")
     overall_table.add_row("F1 (macro)", f"{overall['f1_macro']:.4f}")
     overall_table.add_row("F1 (weighted)", f"{overall['f1_weighted']:.4f}")
+    overall_table.add_row("Precision (macro)", f"{overall['precision_macro']:.4f}")
+    overall_table.add_row("Precision (weighted)", f"{overall['precision_weighted']:.4f}")
+    overall_table.add_row("Recall (macro)", f"{overall['recall_macro']:.4f}")
+    overall_table.add_row("Recall (weighted)", f"{overall['recall_weighted']:.4f}")
     overall_table.add_row("Total samples", f"{overall['total_samples']:,}")
     console.print(overall_table)
 
@@ -150,6 +184,8 @@ def _print_metrics(metrics: dict) -> None:
         top_table.add_column("Language", style="cyan", width=10)
         top_table.add_column("Accuracy", justify="right", style="green")
         top_table.add_column("F1", justify="right", style="blue")
+        top_table.add_column("Precision", justify="right", style="magenta")
+        top_table.add_column("Recall", justify="right", style="cyan")
         top_table.add_column("Samples", justify="right", style="yellow")
 
         for lang, metrics_lang in sorted_langs[:10]:
@@ -157,6 +193,8 @@ def _print_metrics(metrics: dict) -> None:
                 lang,
                 f"{metrics_lang['accuracy']:.4f}",
                 f"{metrics_lang['f1']:.4f}",
+                f"{metrics_lang['precision']:.4f}",
+                f"{metrics_lang['recall']:.4f}",
                 f"{metrics_lang['n_samples']:,}",
             )
         console.print(top_table)
@@ -165,6 +203,8 @@ def _print_metrics(metrics: dict) -> None:
         bottom_table.add_column("Language", style="cyan", width=10)
         bottom_table.add_column("Accuracy", justify="right", style="red")
         bottom_table.add_column("F1", justify="right", style="blue")
+        bottom_table.add_column("Precision", justify="right", style="magenta")
+        bottom_table.add_column("Recall", justify="right", style="cyan")
         bottom_table.add_column("Samples", justify="right", style="yellow")
 
         for lang, metrics_lang in sorted_langs[-10:]:
@@ -172,6 +212,8 @@ def _print_metrics(metrics: dict) -> None:
                 lang,
                 f"{metrics_lang['accuracy']:.4f}",
                 f"{metrics_lang['f1']:.4f}",
+                f"{metrics_lang['precision']:.4f}",
+                f"{metrics_lang['recall']:.4f}",
                 f"{metrics_lang['n_samples']:,}",
             )
         console.print(bottom_table)
