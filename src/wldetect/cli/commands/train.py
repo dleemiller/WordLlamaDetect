@@ -44,7 +44,7 @@ def run(args) -> int:
     config = load_training_config(args.config)
     model_config = load_model_config(config.model_config_path)
 
-    print_header(logger, "LANGTOKEN TRAINING")
+    print_header(logger, "WLDETECT TRAINING")
     logger.info(f"Model: {model_config.all_models[0].name}")
     logger.info(f"Languages: {len(model_config.languages)}")
     logger.info(f"Hidden dim: {model_config.hidden_dim}")
