@@ -207,6 +207,20 @@ uv run wldetect create-lookup \
 
 Apache 2.0 License
 
+## Citations
+
+If you use WordLlama Detect in your research or project, please consider citing it as follows:
+
+```bibtex
+@software{miller2025wordllamadetect,
+  author = {Miller, D. Lee},
+  title = {WordLlama Detect: The Language of the Token},
+  year = {2025},
+  url = {https://github.com/dleemiller/WordLlamaDetect},
+  version = {0.1.0}
+}
+```
+
 ## Acknowledgments
 
 - OpenLID-v2 dataset: [laurievb/OpenLID-v2](https://huggingface.co/datasets/laurievb/OpenLID-v2)
