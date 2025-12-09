@@ -64,7 +64,7 @@ def realistic_model_config_dict():
 @pytest.fixture
 def minimal_model_config(minimal_model_config_dict):
     """ModelConfig instance from minimal dict."""
-    from wldetect.config.models import ModelConfig
+    from wldetect.config import ModelConfig
 
     return ModelConfig(**minimal_model_config_dict)
 
@@ -72,7 +72,7 @@ def minimal_model_config(minimal_model_config_dict):
 @pytest.fixture
 def realistic_model_config(realistic_model_config_dict):
     """ModelConfig instance from realistic dict."""
-    from wldetect.config.models import ModelConfig
+    from wldetect.config import ModelConfig
 
     return ModelConfig(**realistic_model_config_dict)
 

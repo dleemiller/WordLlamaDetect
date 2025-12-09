@@ -7,7 +7,7 @@ import pytest
 torch = pytest.importorskip("torch")
 nn = pytest.importorskip("torch.nn")
 
-from wldetect.config.models import OutputConfig, TrainingConfig
+from wldetect.config import OutputConfig, TrainingConfig
 from wldetect.training.trainer import Trainer
 
 

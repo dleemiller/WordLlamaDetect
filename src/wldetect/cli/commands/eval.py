@@ -75,7 +75,7 @@ def _eval_pytorch_mode(args, logger) -> int:
     import torch
     from transformers import AutoTokenizer
 
-    from wldetect.config.loader import load_model_config, load_training_config
+    from wldetect.config import load_model_config, load_training_config
     from wldetect.training.embeddings import EmbeddingsManager
     from wldetect.training.flores_eval import (
         evaluate_on_flores,

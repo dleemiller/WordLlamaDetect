@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from wldetect.config.models import TrainingConfig
+from wldetect.config import TrainingConfig
 from wldetect.training.flores_eval import compute_flores_metrics, create_flores_eval_loader
 from wldetect.training.losses import FocalLoss
 from wldetect.training.model import LanguageDetectionModel

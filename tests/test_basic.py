@@ -10,12 +10,12 @@ def test_imports():
 
 def test_config_imports():
     """Test config module imports."""
-    from wldetect.config import loader, models
+    from wldetect import config
 
-    assert hasattr(models, "ModelConfig")
-    assert hasattr(models, "TrainingConfig")
-    assert hasattr(loader, "load_model_config")
-    assert hasattr(loader, "load_training_config")
+    assert hasattr(config, "ModelConfig")
+    assert hasattr(config, "TrainingConfig")
+    assert hasattr(config, "load_model_config")
+    assert hasattr(config, "load_training_config")
 
 
 def test_embeddings_imports():
