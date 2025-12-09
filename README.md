@@ -12,7 +12,7 @@ WordLlama detect was trained from static token embeddings extracted from *Gemma3
 
 **Features:**
 - NumPy-only inference with no PyTorch dependency
-- Pre-trained model (148 languages), with [103 languages above 95% accuracy](docs/languages.md)
+- Pre-trained model (148 languages), with 103 >95% accuracy
 - Sparse lookup table (13MB)
 - Fast inference: >70k texts/s single thread
 - Simple interface
