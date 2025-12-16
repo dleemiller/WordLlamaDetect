@@ -37,10 +37,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/dleemiller/wldetect"
-Documentation = "https://github.com/dleemiller/wldetect/tree/main/docs"
-Repository = "https://github.com/dleemiller/wldetect"
-"Bug Tracker" = "https://github.com/dleemiller/wldetect/issues"
+Homepage = "https://github.com/dleemiller/WordLlamaDetect"
+Documentation = "https://github.com/dleemiller/WordLlamaDetect/tree/main/docs"
+Repository = "https://github.com/dleemiller/WordLlamaDetect"
+"Bug Tracker" = "https://github.com/dleemiller/WordLlamaDetect/issues"
 
 [project.optional-dependencies]
 training = [
