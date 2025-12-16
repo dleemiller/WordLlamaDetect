@@ -48,8 +48,8 @@ class WLDetect:
         logger.info(f"Loaded exp lookup table: {lookup_table_path.name}")
 
         # Load tokenizer
-        first_model = self.config.all_models[0]
-        self.tokenizer = Tokenizer.from_pretrained(first_model.name)
+        tokenizer = self.config.inference.tokenizer
+        self.tokenizer = Tokenizer.from_pretrained(tokenizer)
 
         # Language mapping
         self.index_to_language = {i: code for code, i in self.config.languages.items()}
