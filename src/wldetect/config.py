@@ -12,6 +12,7 @@ class InferenceConfig(BaseModel):
 
     max_sequence_length: int = Field(default=512, gt=0)
     pooling: Literal["logsumexp"] = "logsumexp"
+    tokenizer: str = "dleemiller/WordLlamaDetect"
 
 
 class SingleModelConfig(BaseModel):

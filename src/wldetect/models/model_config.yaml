@@ -159,5 +159,6 @@ languages:
   zsm_Latn: 146
   zul_Latn: 147
 inference:
+  tokenizer: dleemiller/WordLlamaDetect
   max_sequence_length: 512
   pooling: logsumexp
