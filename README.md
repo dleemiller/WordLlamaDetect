@@ -25,8 +25,8 @@ pip install wldetect
 
 Or install from source:
 ```bash
-git clone https://github.com/dleemiller/wldetect.git
-cd wldetect
+git clone https://github.com/dleemiller/WordLlamaDetect.git
+cd WordLlamaDetect
 uv sync
 ```
 
